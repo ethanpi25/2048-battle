@@ -2,20 +2,26 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const compression = require('compression');
 
 const PORT = process.env.PORT || 3000;
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// Static files with cache headers for faster loading
+// Gzip compression for all text-based responses
+app.use(compression({ level: 6, threshold: 256 }));
+
+// Static files with aggressive cache headers
 app.use(express.static(path.join(__dirname, 'public'), {
-  maxAge: '1h',
+  maxAge: '7d',
   etag: true,
   lastModified: true,
   setHeaders: function (res, filePath) {
     if (/\.(png|jpg|jpeg|webp|gif|svg|ico)$/i.test(filePath)) {
-      res.setHeader('Cache-Control', 'public, max-age=86400');
+      res.setHeader('Cache-Control', 'public, max-age=2592000, immutable');
+    } else if (/\.(css|js)$/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'public, max-age=604800');
     }
   }
 }));

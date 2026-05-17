@@ -2,6 +2,9 @@ var GameSocket = (function () {
   function GameSocket() {
     this.socket = null;
     this.handlers = {};
+    // Throttle state updates to max ~20fps (50ms)
+    this._stateThrottleTimer = null;
+    this._pendingState = null;
   }
 
   GameSocket.prototype.connect = function () {
@@ -74,7 +77,16 @@ var GameSocket = (function () {
   };
 
   GameSocket.prototype.sendState = function (state) {
-    this.socket.emit('state-update', state);
+    var self = this;
+    this._pendingState = state;
+    if (this._stateThrottleTimer) return;
+    this._stateThrottleTimer = setTimeout(function () {
+      self._stateThrottleTimer = null;
+      if (self._pendingState) {
+        self.socket.emit('state-update', self._pendingState);
+        self._pendingState = null;
+      }
+    }, 50);
   };
 
   GameSocket.prototype.sendGameOver = function (score) {

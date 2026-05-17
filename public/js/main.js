@@ -387,17 +387,12 @@ var App = (function () {
     });
 
     socket.on('opponent-temp-disconnect', function () {
-      // Show a notification that opponent disconnected temporarily
-      var overlay = document.getElementById('countdown-overlay');
-      var text = document.getElementById('countdown-text');
-      overlay.classList.remove('hidden');
-      text.textContent = '对手重连中...';
+      dom.countdownOverlay.classList.remove('hidden');
+      dom.countdownText.textContent = '对手重连中...';
     });
 
     socket.on('opponent-reconnected', function () {
-      // Hide the overlay
-      var overlay = document.getElementById('countdown-overlay');
-      overlay.classList.add('hidden');
+      dom.countdownOverlay.classList.add('hidden');
     });
 
     socket.on('reconnect-status', function (data) {
@@ -415,8 +410,8 @@ var App = (function () {
       opponentBoard.reset();
 
       showView('game');
-      document.getElementById('opponent-name').textContent = '对手';
-      document.getElementById('result-opponent-label').textContent = '对手';
+      dom.opponentName.textContent = '对手';
+      dom.resultOpponentLabel.textContent = '对手';
 
       // Restore my state
       if (data.myState && data.myState.grid) {
@@ -442,13 +437,13 @@ var App = (function () {
 
     socket.on('room-expired', function (data) {
       clearWaitCountdown();
-      document.getElementById('lobby-status').textContent = data.message || '房间已过期';
-      document.getElementById('room-code-display').classList.add('hidden');
+      dom.lobbyStatus.textContent = data.message || '房间已过期';
+      dom.roomCodeDisplay.classList.add('hidden');
     });
 
     socket.on('error', function (data) {
       clearWaitCountdown();
-      document.getElementById('lobby-status').textContent = data.message || '发生错误';
+      dom.lobbyStatus.textContent = data.message || '发生错误';
     });
   }
 
@@ -483,8 +478,8 @@ var App = (function () {
     SoundManager.resetMilestone();
 
     var label = 'AI (' + difficultyLabels[aiDifficulty] + ')';
-    document.getElementById('opponent-name').textContent = label;
-    document.getElementById('result-opponent-label').textContent = label;
+    dom.opponentName.textContent = label;
+    dom.resultOpponentLabel.textContent = label;
 
     showView('game');
     runCountdown(function () {
@@ -540,23 +535,21 @@ var App = (function () {
 
   // --- Shared ---
   function runCountdown(callback) {
-    var overlay = document.getElementById('countdown-overlay');
-    var text = document.getElementById('countdown-text');
-    overlay.classList.remove('hidden');
+    dom.countdownOverlay.classList.remove('hidden');
 
     var counts = ['3', '2', '1', '开始!'];
     var i = 0;
 
     function showNext() {
       if (i >= counts.length) {
-        overlay.classList.add('hidden');
+        dom.countdownOverlay.classList.add('hidden');
         callback();
         return;
       }
-      text.textContent = counts[i];
-      text.classList.remove('countdown-animate');
-      void text.offsetWidth;
-      text.classList.add('countdown-animate');
+      dom.countdownText.textContent = counts[i];
+      dom.countdownText.classList.remove('countdown-animate');
+      void dom.countdownText.offsetWidth;
+      dom.countdownText.classList.add('countdown-animate');
       SoundManager.playCountdown();
       i++;
       setTimeout(showNext, 800);
@@ -618,7 +611,7 @@ var App = (function () {
       }
     });
 
-    var gameArea = document.getElementById('view-game');
+    var gameArea = dom.viewGame;
 
     gameArea.addEventListener('touchstart', function (e) {
       touchStartX = e.touches[0].clientX;
@@ -658,22 +651,17 @@ var App = (function () {
   }
 
   function showResults(data) {
-    var resultTitle = document.getElementById('result-title');
-    var resultMessage = document.getElementById('result-message');
-    var resultMyScore = document.getElementById('result-my-score');
-    var resultOpponentScore = document.getElementById('result-opponent-score');
-
     if (data.winner === 'you' || data.winner === 'draw') {
-      resultTitle.textContent = data.winner === 'draw' ? '平局！' : '你赢了！';
-      resultTitle.className = data.winner === 'draw' ? 'result-draw' : 'result-win';
+      dom.resultTitle.textContent = data.winner === 'draw' ? '平局！' : '你赢了！';
+      dom.resultTitle.className = data.winner === 'draw' ? 'result-draw' : 'result-win';
     } else {
-      resultTitle.textContent = '你输了';
-      resultTitle.className = 'result-lose';
+      dom.resultTitle.textContent = '你输了';
+      dom.resultTitle.className = 'result-lose';
     }
 
-    resultMessage.textContent = data.reason || '';
-    resultMyScore.textContent = game ? game.getScore() : 0;
-    resultOpponentScore.textContent = data.opponentScore || 0;
+    dom.resultMessage.textContent = data.reason || '';
+    dom.resultMyScore.textContent = game ? game.getScore() : 0;
+    dom.resultOpponentScore.textContent = data.opponentScore || 0;
 
     showView('results');
   }
@@ -681,26 +669,23 @@ var App = (function () {
   // --- Leaderboard ---
   function showLeaderboard() {
     showView('leaderboard');
-    var listEl = document.getElementById('lb-list');
-    listEl.innerHTML = '<p class="lb-loading">加载中...</p>';
-    document.getElementById('lb-date').textContent = '';
+    dom.lbList.innerHTML = '<p class="lb-loading">加载中...</p>';
+    dom.lbDate.textContent = '';
 
     fetch('/api/leaderboard')
       .then(function (res) { return res.json(); })
       .then(function (data) {
-        document.getElementById('lb-date').textContent = data.date || '';
+        dom.lbDate.textContent = data.date || '';
         renderLeaderboard(data.scores || []);
       })
       .catch(function () {
-        listEl.innerHTML = '<p class="lb-empty">加载失败，请稍后重试</p>';
+        dom.lbList.innerHTML = '<p class="lb-empty">加载失败，请稍后重试</p>';
       });
   }
 
   function renderLeaderboard(scores) {
-    var listEl = document.getElementById('lb-list');
-
     if (scores.length === 0) {
-      listEl.innerHTML = '<p class="lb-empty">今日暂无记录，快去对战吧！</p>';
+      dom.lbList.innerHTML = '<p class="lb-empty">今日暂无记录，快去对战吧！</p>';
       return;
     }
 
@@ -714,7 +699,7 @@ var App = (function () {
       html += '<div class="lb-score">' + scores[i].score + '</div>';
       html += '</div>';
     }
-    listEl.innerHTML = html;
+    dom.lbList.innerHTML = html;
   }
 
   function escapeHtml(str) {
