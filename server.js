@@ -11,6 +11,11 @@ const io = new Server(server);
 app.use(express.static(path.join(__dirname, 'public')));
 
 const rooms = new Map();
+// Maps IP -> { roomId, playerIndex, disconnectedAt }
+const disconnectedPlayers = new Map();
+
+const WAIT_TIMEOUT = 60000; // 1 minute waiting for opponent
+const RECONNECT_GRACE = 60000; // 1 minute grace period for reconnection
 
 function generateRoomId() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -19,13 +24,99 @@ function generateRoomId() {
   return rooms.has(id) ? generateRoomId() : id;
 }
 
+function getClientIp(socket) {
+  return socket.handshake.headers['x-forwarded-for']
+    ? socket.handshake.headers['x-forwarded-for'].split(',')[0].trim()
+    : socket.handshake.address;
+}
+
 io.on('connection', (socket) => {
+  const clientIp = getClientIp(socket);
+  socket.clientIp = clientIp;
+
+  // Check for reconnection opportunity
+  socket.on('check-reconnect', () => {
+    const entry = disconnectedPlayers.get(clientIp);
+    if (!entry) return socket.emit('reconnect-status', { canReconnect: false });
+
+    const room = rooms.get(entry.roomId);
+    if (!room || !room.started) {
+      disconnectedPlayers.delete(clientIp);
+      return socket.emit('reconnect-status', { canReconnect: false });
+    }
+
+    socket.emit('reconnect-status', {
+      canReconnect: true,
+      roomId: entry.roomId
+    });
+  });
+
+  socket.on('do-reconnect', () => {
+    const entry = disconnectedPlayers.get(clientIp);
+    if (!entry) return socket.emit('error', { message: 'No session to reconnect' });
+
+    const room = rooms.get(entry.roomId);
+    if (!room || !room.started) {
+      disconnectedPlayers.delete(clientIp);
+      return socket.emit('error', { message: 'Room no longer exists' });
+    }
+
+    // Clear reconnect timeout
+    if (entry.timeout) clearTimeout(entry.timeout);
+    disconnectedPlayers.delete(clientIp);
+
+    // Replace old socket ID with new one
+    room.players[entry.playerIndex] = socket.id;
+    room.playerIps[entry.playerIndex] = clientIp;
+
+    // Migrate state from old socket ID to new
+    if (room.states[entry.oldSocketId]) {
+      room.states[socket.id] = room.states[entry.oldSocketId];
+      delete room.states[entry.oldSocketId];
+    }
+
+    socket.join(entry.roomId);
+    socket.roomId = entry.roomId;
+
+    // Get opponent's latest state
+    const opponentIndex = entry.playerIndex === 0 ? 1 : 0;
+    const opponentSocketId = room.players[opponentIndex];
+    const opponentState = room.states[opponentSocketId] || null;
+    const myState = room.states[socket.id] || null;
+
+    socket.emit('reconnected', {
+      roomId: entry.roomId,
+      myState: myState,
+      opponentState: opponentState
+    });
+
+    // Notify opponent that player reconnected
+    socket.to(entry.roomId).emit('opponent-reconnected');
+  });
+
   socket.on('create-room', () => {
     const roomId = generateRoomId();
-    rooms.set(roomId, { players: [socket.id], states: {} });
+    rooms.set(roomId, {
+      players: [socket.id],
+      playerIps: [clientIp],
+      states: {},
+      started: false,
+      waitTimer: null
+    });
     socket.join(roomId);
     socket.roomId = roomId;
-    socket.emit('room-created', { roomId });
+
+    // Start 60s waiting timer
+    const room = rooms.get(roomId);
+    room.waitTimer = setTimeout(() => {
+      const r = rooms.get(roomId);
+      if (r && !r.started) {
+        io.to(roomId).emit('room-expired', { message: 'No opponent joined in time' });
+        rooms.delete(roomId);
+      }
+    }, WAIT_TIMEOUT);
+
+    socket.emit('room-created', { roomId, waitTime: WAIT_TIMEOUT });
   });
 
   socket.on('join-room', ({ roomId }) => {
@@ -33,7 +124,15 @@ io.on('connection', (socket) => {
     if (!room) return socket.emit('error', { message: 'Room not found' });
     if (room.players.length >= 2) return socket.emit('error', { message: 'Room is full' });
 
+    // Cancel waiting timer
+    if (room.waitTimer) {
+      clearTimeout(room.waitTimer);
+      room.waitTimer = null;
+    }
+
     room.players.push(socket.id);
+    room.playerIps.push(clientIp);
+    room.started = true;
     socket.join(roomId);
     socket.roomId = roomId;
     io.to(roomId).emit('game-start', { roomId, players: room.players });
@@ -69,11 +168,51 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     const room = rooms.get(socket.roomId);
     if (!room) return;
-    room.players = room.players.filter((p) => p !== socket.id);
-    if (room.players.length === 0) {
-      rooms.delete(socket.roomId);
+
+    const playerIndex = room.players.indexOf(socket.id);
+    if (playerIndex === -1) return;
+
+    // If game is in progress (started and 2 players), allow reconnection
+    if (room.started && room.players.length === 2) {
+      // Mark as disconnected, allow grace period for reconnection
+      const entry = {
+        roomId: socket.roomId,
+        playerIndex: playerIndex,
+        oldSocketId: socket.id,
+        disconnectedAt: Date.now(),
+        timeout: null
+      };
+
+      entry.timeout = setTimeout(() => {
+        // Grace period expired - finalize disconnect
+        disconnectedPlayers.delete(clientIp);
+        const r = rooms.get(entry.roomId);
+        if (r) {
+          r.players = r.players.filter((p) => p !== entry.oldSocketId);
+          if (r.players.length === 0) {
+            rooms.delete(entry.roomId);
+          } else {
+            io.to(entry.roomId).emit('opponent-disconnected');
+          }
+        }
+      }, RECONNECT_GRACE);
+
+      disconnectedPlayers.set(clientIp, entry);
+
+      // Notify opponent of temporary disconnect
+      socket.to(socket.roomId).emit('opponent-temp-disconnect');
     } else {
-      io.to(socket.roomId).emit('opponent-disconnected');
+      // Game not started or only 1 player - clean up immediately
+      room.players = room.players.filter((p) => p !== socket.id);
+      if (room.waitTimer) {
+        clearTimeout(room.waitTimer);
+        room.waitTimer = null;
+      }
+      if (room.players.length === 0) {
+        rooms.delete(socket.roomId);
+      } else {
+        io.to(socket.roomId).emit('opponent-disconnected');
+      }
     }
   });
 });

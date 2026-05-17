@@ -8,6 +8,18 @@ var App = (function () {
   var touchStartX = 0;
   var touchStartY = 0;
 
+  // AI mode state
+  var gameMode = null;    // 'room' | 'ai'
+  var aiDifficulty = null;
+  var aiOpponent = null;
+  var playerDone = false;
+  var aiDone = false;
+  var aiScore = 0;
+
+  // Waiting timer state
+  var waitInterval = null;
+  var waitSecondsLeft = 0;
+
   function init() {
     socket = new GameSocket();
     socket.connect();
@@ -19,6 +31,9 @@ var App = (function () {
     bindSocket();
     bindInput();
     showView('lobby');
+
+    // Check if we can reconnect to an existing game
+    socket.checkReconnect();
   }
 
   function showView(view) {
@@ -29,8 +44,95 @@ var App = (function () {
     currentView = view;
   }
 
+  function showLobbySection(sectionId) {
+    var sections = ['mode-select', 'lobby-ai-section', 'lobby-room-section'];
+    for (var i = 0; i < sections.length; i++) {
+      var el = document.getElementById(sections[i]);
+      if (sections[i] === sectionId) {
+        el.classList.remove('hidden');
+      } else {
+        el.classList.add('hidden');
+      }
+    }
+    // hide room code and status when switching sections
+    document.getElementById('room-code-display').classList.add('hidden');
+    document.getElementById('lobby-status').textContent = '';
+  }
+
+  function capitalize(str) {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  }
+
+  function startWaitCountdown(totalMs) {
+    clearWaitCountdown();
+    waitSecondsLeft = Math.ceil(totalMs / 1000);
+    updateWaitDisplay();
+    waitInterval = setInterval(function () {
+      waitSecondsLeft--;
+      if (waitSecondsLeft <= 0) {
+        clearWaitCountdown();
+      } else {
+        updateWaitDisplay();
+      }
+    }, 1000);
+  }
+
+  function updateWaitDisplay() {
+    var mins = Math.floor(waitSecondsLeft / 60);
+    var secs = waitSecondsLeft % 60;
+    var timeStr = mins + ':' + (secs < 10 ? '0' : '') + secs;
+    document.getElementById('lobby-status').textContent = 'Waiting for opponent... ' + timeStr;
+  }
+
+  function clearWaitCountdown() {
+    if (waitInterval) {
+      clearInterval(waitInterval);
+      waitInterval = null;
+    }
+  }
+
   function bindUI() {
+    // Mode selection
+    document.getElementById('btn-ai-mode').addEventListener('click', function () {
+      showLobbySection('lobby-ai-section');
+    });
+
+    document.getElementById('btn-room-mode').addEventListener('click', function () {
+      showLobbySection('lobby-room-section');
+    });
+
+    // Back buttons
+    document.getElementById('btn-ai-back').addEventListener('click', function () {
+      showLobbySection('mode-select');
+    });
+
+    document.getElementById('btn-room-back').addEventListener('click', function () {
+      clearWaitCountdown();
+      showLobbySection('mode-select');
+    });
+
+    // Difficulty buttons
+    document.getElementById('btn-diff-easy').addEventListener('click', function () {
+      gameMode = 'ai';
+      aiDifficulty = 'easy';
+      startAIGame();
+    });
+
+    document.getElementById('btn-diff-medium').addEventListener('click', function () {
+      gameMode = 'ai';
+      aiDifficulty = 'medium';
+      startAIGame();
+    });
+
+    document.getElementById('btn-diff-hell').addEventListener('click', function () {
+      gameMode = 'ai';
+      aiDifficulty = 'hell';
+      startAIGame();
+    });
+
+    // Room buttons
     document.getElementById('btn-create').addEventListener('click', function () {
+      gameMode = 'room';
       socket.createRoom();
       document.getElementById('lobby-status').textContent = 'Creating room...';
     });
@@ -38,22 +140,12 @@ var App = (function () {
     document.getElementById('btn-join').addEventListener('click', function () {
       var code = document.getElementById('input-room-code').value.trim().toUpperCase();
       if (!code) return;
+      gameMode = 'room';
       socket.joinRoom(code);
       document.getElementById('lobby-status').textContent = 'Joining room...';
     });
 
-    document.getElementById('btn-play-again').addEventListener('click', function () {
-      showView('lobby');
-      document.getElementById('lobby-status').textContent = '';
-      document.getElementById('room-code-display').classList.add('hidden');
-    });
-
-    document.getElementById('btn-back-lobby').addEventListener('click', function () {
-      showView('lobby');
-      document.getElementById('lobby-status').textContent = '';
-      document.getElementById('room-code-display').classList.add('hidden');
-    });
-
+    // Copy room code
     document.getElementById('btn-copy-code').addEventListener('click', function () {
       var code = document.getElementById('room-code-value').textContent;
       if (navigator.clipboard) {
@@ -65,17 +157,43 @@ var App = (function () {
         });
       }
     });
+
+    // Results buttons
+    document.getElementById('btn-play-again').addEventListener('click', function () {
+      if (gameMode === 'ai') {
+        startAIGame();
+      } else {
+        showView('lobby');
+        showLobbySection('lobby-room-section');
+        document.getElementById('lobby-status').textContent = '';
+        document.getElementById('room-code-display').classList.add('hidden');
+      }
+    });
+
+    document.getElementById('btn-back-lobby').addEventListener('click', function () {
+      stopAI();
+      gameActive = false;
+      showView('lobby');
+      showLobbySection('mode-select');
+      document.getElementById('lobby-status').textContent = '';
+      document.getElementById('room-code-display').classList.add('hidden');
+    });
   }
 
   function bindSocket() {
     socket.on('room-created', function (data) {
-      document.getElementById('lobby-status').textContent = 'Waiting for opponent...';
       document.getElementById('room-code-display').classList.remove('hidden');
       document.getElementById('room-code-value').textContent = data.roomId;
+      // Start waiting countdown
+      var waitTime = data.waitTime || 60000;
+      startWaitCountdown(waitTime);
     });
 
-    socket.on('game-start', function (data) {
-      startGame();
+    socket.on('game-start', function () {
+      clearWaitCountdown();
+      document.getElementById('opponent-name').textContent = 'Opponent';
+      document.getElementById('result-opponent-label').textContent = 'Opponent';
+      startRoomGame();
     });
 
     socket.on('opponent-update', function (data) {
@@ -85,6 +203,12 @@ var App = (function () {
 
     socket.on('game-over', function (data) {
       gameActive = false;
+      // translate winner socket ID to 'you' / 'lose'
+      if (data.winner === socket.getId()) {
+        data.winner = 'you';
+      } else if (data.winner !== 'draw') {
+        data.winner = 'lose';
+      }
       showResults(data);
     });
 
@@ -93,12 +217,73 @@ var App = (function () {
       showResults({ winner: 'you', reason: 'Opponent disconnected' });
     });
 
+    socket.on('opponent-temp-disconnect', function () {
+      // Show a notification that opponent disconnected temporarily
+      var overlay = document.getElementById('countdown-overlay');
+      var text = document.getElementById('countdown-text');
+      overlay.classList.remove('hidden');
+      text.textContent = 'Opponent reconnecting...';
+    });
+
+    socket.on('opponent-reconnected', function () {
+      // Hide the overlay
+      var overlay = document.getElementById('countdown-overlay');
+      overlay.classList.add('hidden');
+    });
+
+    socket.on('reconnect-status', function (data) {
+      if (data.canReconnect) {
+        // Auto-reconnect to existing game
+        gameMode = 'room';
+        socket.doReconnect();
+      }
+    });
+
+    socket.on('reconnected', function (data) {
+      // Restore game state after reconnection
+      game = new Game2048();
+      myBoard.reset();
+      opponentBoard.reset();
+
+      showView('game');
+      document.getElementById('opponent-name').textContent = 'Opponent';
+      document.getElementById('result-opponent-label').textContent = 'Opponent';
+
+      // Restore my state
+      if (data.myState && data.myState.grid) {
+        game.restoreState(data.myState);
+        myBoard.update(data.myState.grid);
+        myBoard.updateScore(data.myState.score);
+      } else {
+        var state = game.init();
+        myBoard.update(state.grid);
+        myBoard.updateScore(state.score);
+        socket.sendState(state);
+      }
+
+      // Restore opponent state
+      if (data.opponentState && data.opponentState.grid) {
+        opponentBoard.update(data.opponentState.grid);
+        opponentBoard.updateScore(data.opponentState.score);
+      }
+
+      gameActive = true;
+    });
+
+    socket.on('room-expired', function (data) {
+      clearWaitCountdown();
+      document.getElementById('lobby-status').textContent = data.message || 'Room expired';
+      document.getElementById('room-code-display').classList.add('hidden');
+    });
+
     socket.on('error', function (data) {
+      clearWaitCountdown();
       document.getElementById('lobby-status').textContent = data.message || 'An error occurred';
     });
   }
 
-  function startGame() {
+  // --- Room game (existing flow) ---
+  function startRoomGame() {
     game = new Game2048();
     myBoard.reset();
     opponentBoard.reset();
@@ -113,6 +298,68 @@ var App = (function () {
     });
   }
 
+  // --- AI game (new flow) ---
+  function startAIGame() {
+    stopAI();
+    game = new Game2048();
+    myBoard.reset();
+    opponentBoard.reset();
+    playerDone = false;
+    aiDone = false;
+    aiScore = 0;
+
+    document.getElementById('opponent-name').textContent = 'AI (' + capitalize(aiDifficulty) + ')';
+    document.getElementById('result-opponent-label').textContent = 'AI (' + capitalize(aiDifficulty) + ')';
+
+    showView('game');
+    runCountdown(function () {
+      var state = game.init();
+      myBoard.update(state.grid);
+      myBoard.updateScore(state.score);
+      gameActive = true;
+
+      aiOpponent = new AIOpponent(aiDifficulty, onAIUpdate, onAIGameOver);
+      aiOpponent.start();
+    });
+  }
+
+  function onAIUpdate(result) {
+    opponentBoard.update(result.grid, result.merged, result.spawned);
+    opponentBoard.updateScore(result.score);
+  }
+
+  function onAIGameOver(data) {
+    aiDone = true;
+    aiScore = data.score;
+    checkAIGameEnd();
+  }
+
+  function checkAIGameEnd() {
+    if (!playerDone || !aiDone) return;
+    stopAI();
+    gameActive = false;
+
+    var playerScore = game.getScore();
+    var winner;
+    if (playerScore > aiScore) {
+      winner = 'you';
+    } else if (playerScore < aiScore) {
+      winner = 'lose';
+    } else {
+      winner = 'draw';
+    }
+
+    showResults({ winner: winner, opponentScore: aiScore });
+  }
+
+  function stopAI() {
+    if (aiOpponent) {
+      aiOpponent.stop();
+      aiOpponent = null;
+    }
+  }
+
+  // --- Shared ---
   function runCountdown(callback) {
     var overlay = document.getElementById('countdown-overlay');
     var text = document.getElementById('countdown-text');
@@ -146,11 +393,19 @@ var App = (function () {
 
     myBoard.update(result.grid, result.merged, result.spawned);
     myBoard.updateScore(result.score);
-    socket.sendState({ grid: result.grid, score: result.score });
 
-    if (result.gameOver) {
-      gameActive = false;
-      socket.sendGameOver(result.score);
+    if (gameMode === 'room') {
+      socket.sendState({ grid: result.grid, score: result.score });
+      if (result.gameOver) {
+        gameActive = false;
+        socket.sendGameOver(result.score);
+      }
+    } else if (gameMode === 'ai') {
+      if (result.gameOver) {
+        gameActive = false;
+        playerDone = true;
+        checkAIGameEnd();
+      }
     }
   }
 

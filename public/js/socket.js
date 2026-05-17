@@ -36,6 +36,26 @@ var GameSocket = (function () {
       if (self.handlers['opponent-disconnected']) self.handlers['opponent-disconnected'](data);
     });
 
+    this.socket.on('opponent-temp-disconnect', function (data) {
+      if (self.handlers['opponent-temp-disconnect']) self.handlers['opponent-temp-disconnect'](data);
+    });
+
+    this.socket.on('opponent-reconnected', function (data) {
+      if (self.handlers['opponent-reconnected']) self.handlers['opponent-reconnected'](data);
+    });
+
+    this.socket.on('reconnect-status', function (data) {
+      if (self.handlers['reconnect-status']) self.handlers['reconnect-status'](data);
+    });
+
+    this.socket.on('reconnected', function (data) {
+      if (self.handlers['reconnected']) self.handlers['reconnected'](data);
+    });
+
+    this.socket.on('room-expired', function (data) {
+      if (self.handlers['room-expired']) self.handlers['room-expired'](data);
+    });
+
     this.socket.on('error', function (data) {
       if (self.handlers['error']) self.handlers['error'](data);
     });
@@ -55,6 +75,18 @@ var GameSocket = (function () {
 
   GameSocket.prototype.sendGameOver = function (score) {
     this.socket.emit('game-over', { score: score });
+  };
+
+  GameSocket.prototype.checkReconnect = function () {
+    this.socket.emit('check-reconnect');
+  };
+
+  GameSocket.prototype.doReconnect = function () {
+    this.socket.emit('do-reconnect');
+  };
+
+  GameSocket.prototype.getId = function () {
+    return this.socket ? this.socket.id : null;
   };
 
   GameSocket.prototype.disconnect = function () {

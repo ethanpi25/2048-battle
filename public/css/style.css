@@ -74,6 +74,61 @@ body {
   gap: 12px;
 }
 
+.section-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.btn-back {
+  background: none;
+  border: none;
+  color: #A09486;
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-align: left;
+  padding: 0;
+  margin-bottom: 4px;
+  transition: color 0.15s;
+}
+
+.btn-back:hover {
+  color: var(--primary);
+}
+
+.btn-diff {
+  color: var(--white);
+  border: none;
+}
+
+.btn-diff-easy {
+  background: #6BCB77;
+  box-shadow: 0 4px 12px rgba(107, 203, 119, 0.3);
+}
+
+.btn-diff-easy:hover {
+  box-shadow: 0 6px 16px rgba(107, 203, 119, 0.4);
+}
+
+.btn-diff-medium {
+  background: var(--primary);
+  box-shadow: 0 4px 12px rgba(237, 184, 110, 0.3);
+}
+
+.btn-diff-medium:hover {
+  box-shadow: 0 6px 16px rgba(237, 184, 110, 0.4);
+}
+
+.btn-diff-hell {
+  background: #F67C5F;
+  box-shadow: 0 4px 12px rgba(246, 124, 95, 0.3);
+}
+
+.btn-diff-hell:hover {
+  box-shadow: 0 6px 16px rgba(246, 124, 95, 0.4);
+}
+
 .btn {
   padding: 14px 24px;
   border-radius: 8px;

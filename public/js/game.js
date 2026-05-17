@@ -147,5 +147,14 @@ var Game2048 = (function () {
     };
   };
 
+  Game2048.prototype.restoreState = function (state) {
+    if (state.grid) {
+      this.grid = state.grid.map(function (row) { return row.slice(); });
+    }
+    if (typeof state.score === 'number') {
+      this.score = state.score;
+    }
+  };
+
   return Game2048;
 })();

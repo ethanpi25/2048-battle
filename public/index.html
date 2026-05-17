@@ -12,9 +12,26 @@
   <div id="view-lobby" class="view active">
     <div class="lobby-card">
       <h1>2048 Battle</h1>
-      <p class="subtitle">Challenge a friend in real-time</p>
+      <p class="subtitle">Choose your battle mode</p>
 
-      <div class="lobby-actions">
+      <!-- Mode Selection -->
+      <div id="mode-select" class="lobby-actions">
+        <button id="btn-ai-mode" class="btn btn-primary">AI Battle</button>
+        <button id="btn-room-mode" class="btn btn-secondary">Room Battle</button>
+      </div>
+
+      <!-- AI Difficulty Selection -->
+      <div id="lobby-ai-section" class="lobby-actions hidden">
+        <button id="btn-ai-back" class="btn-back">&larr; Back</button>
+        <p class="section-title">Select Difficulty</p>
+        <button id="btn-diff-easy" class="btn btn-diff btn-diff-easy">Easy</button>
+        <button id="btn-diff-medium" class="btn btn-diff btn-diff-medium">Medium</button>
+        <button id="btn-diff-hell" class="btn btn-diff btn-diff-hell">Hell</button>
+      </div>
+
+      <!-- Room Lobby -->
+      <div id="lobby-room-section" class="lobby-actions hidden">
+        <button id="btn-room-back" class="btn-back">&larr; Back</button>
         <button id="btn-create" class="btn btn-primary">Create Room</button>
 
         <div class="divider">or</div>
@@ -51,7 +68,7 @@
 
     <div class="player-section opponent-section">
       <div class="player-header">
-        <span class="player-name">Opponent</span>
+        <span id="opponent-name" class="player-name">Opponent</span>
         <div class="score-container">
           <span id="opponent-score">0</span>
         </div>
@@ -76,7 +93,7 @@
           <div id="result-my-score" class="value">0</div>
         </div>
         <div class="result-score-item">
-          <div class="label">Opponent</div>
+          <div id="result-opponent-label" class="label">Opponent</div>
           <div id="result-opponent-score" class="value">0</div>
         </div>
       </div>
@@ -92,6 +109,7 @@
   <script src="/js/game.js"></script>
   <script src="/js/board.js"></script>
   <script src="/js/socket.js"></script>
+  <script src="/js/ai.js"></script>
   <script src="/js/main.js"></script>
 </body>
 </html>
