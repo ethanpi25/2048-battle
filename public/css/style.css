@@ -128,11 +128,12 @@ body {
 
 .join-group {
   display: flex;
+  flex-direction: column;
   gap: 8px;
 }
 
 .input-code {
-  flex: 1;
+  width: 100%;
   padding: 14px 16px;
   border: 2px solid var(--border);
   border-radius: 8px;
@@ -175,6 +176,32 @@ body {
   font-weight: 700;
   letter-spacing: 6px;
   color: var(--primary);
+}
+
+.code-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-copy {
+  border: none;
+  background: var(--primary);
+  color: var(--white);
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s;
+}
+
+.btn-copy:active {
+  transform: scale(0.9);
 }
 
 .hidden {
@@ -402,30 +429,6 @@ body {
   color: #A09486;
 }
 
-/* D-Pad */
-.dpad-container {
-  display: none;
-  grid-template: repeat(3, 48px) / repeat(3, 48px);
-  justify-content: center;
-  gap: 4px;
-  margin-top: 16px;
-}
-
-.dpad-btn {
-  border: none;
-  border-radius: 8px;
-  background: var(--board-bg);
-  color: var(--white);
-  font-size: 20px;
-  cursor: pointer;
-  touch-action: manipulation;
-}
-
-.dpad-btn:active {
-  background: var(--primary);
-  transform: scale(0.9);
-}
-
 /* Responsive */
 @media (max-width: 768px) {
   #view-game {
@@ -454,10 +457,6 @@ body {
   .opponent-section .tile-small-text {
     font-size: 0.8rem;
   }
-
-  .dpad-container {
-    display: grid;
-  }
 }
 
 @media (max-width: 380px) {
@@ -473,10 +472,6 @@ body {
 
   .tile-small-text {
     font-size: 1rem;
-  }
-
-  .dpad-container {
-    grid-template: repeat(3, 42px) / repeat(3, 42px);
   }
 }
 

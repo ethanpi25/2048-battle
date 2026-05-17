@@ -53,6 +53,18 @@ var App = (function () {
       document.getElementById('lobby-status').textContent = '';
       document.getElementById('room-code-display').classList.add('hidden');
     });
+
+    document.getElementById('btn-copy-code').addEventListener('click', function () {
+      var code = document.getElementById('room-code-value').textContent;
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(code).then(function () {
+          document.getElementById('btn-copy-code').textContent = '\u2713';
+          setTimeout(function () {
+            document.getElementById('btn-copy-code').innerHTML = '&#128203;';
+          }, 1500);
+        });
+      }
+    });
   }
 
   function bindSocket() {
@@ -197,14 +209,6 @@ var App = (function () {
       handleMove(direction);
     }, { passive: false });
 
-    var dpadBtns = document.querySelectorAll('.dpad-btn');
-    dpadBtns.forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var dir = this.getAttribute('data-dir');
-        handleMove(dir);
-        if (navigator.vibrate) navigator.vibrate(10);
-      });
-    });
   }
 
   function showResults(data) {
