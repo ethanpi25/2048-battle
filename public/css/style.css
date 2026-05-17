@@ -28,9 +28,22 @@ body::before {
   content: '';
   position: fixed;
   inset: 0;
+  background: linear-gradient(135deg, #FAF8EF 0%, #E8D5B7 50%, #D4B896 100%);
+  z-index: -1;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
   background: url('/images/bg-chinese.jpg') center/cover no-repeat;
   z-index: -1;
-  will-change: transform;
+  opacity: 0;
+  animation: bgFadeIn 0.5s ease 0.1s forwards;
+}
+
+@keyframes bgFadeIn {
+  to { opacity: 1; }
 }
 
 /* Views */
