@@ -20,8 +20,8 @@ var App = (function () {
   var waitInterval = null;
   var waitSecondsLeft = 0;
 
-  // Game timer state (5 minutes countdown)
-  var GAME_DURATION = 5 * 60; // 5 minutes in seconds
+  // Game timer state (2 minutes countdown)
+  var GAME_DURATION = 2 * 60; // 2 minutes in seconds
   var gameTimerInterval = null;
   var gameSecondsLeft = 0;
 
