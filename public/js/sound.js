@@ -150,8 +150,9 @@ var SoundManager = (function () {
 
   function toggleMute() {
     muted = !muted;
-    if (muted && window.speechSynthesis) {
-      speechSynthesis.cancel();
+    if (muted) {
+      if (window.speechSynthesis) speechSynthesis.cancel();
+      stopBGM();
     }
     return muted;
   }
@@ -164,6 +165,65 @@ var SoundManager = (function () {
     lastMilestone = 0;
   }
 
+  // BGM for leaderboard - Chinese pentatonic melody loop
+  var bgmPlaying = false;
+  var bgmNodes = [];
+  var bgmTimer = null;
+
+  function startBGM() {
+    if (muted || bgmPlaying) return;
+    bgmPlaying = true;
+    playBGMLoop();
+  }
+
+  function stopBGM() {
+    bgmPlaying = false;
+    if (bgmTimer) {
+      clearTimeout(bgmTimer);
+      bgmTimer = null;
+    }
+    for (var i = 0; i < bgmNodes.length; i++) {
+      try { bgmNodes[i].stop(); } catch(e) {}
+    }
+    bgmNodes = [];
+  }
+
+  function playBGMLoop() {
+    if (!bgmPlaying || muted) { bgmPlaying = false; return; }
+    var ctx = ensureContext();
+    
+    // Chinese pentatonic scale notes (宫商角徵羽): C D E G A
+    var melody = [523, 587, 659, 784, 880, 784, 659, 587, 523, 659, 784, 880, 1047, 880, 784, 659];
+    var noteDuration = 0.35;
+    var totalDuration = melody.length * noteDuration;
+    
+    bgmNodes = [];
+    for (var i = 0; i < melody.length; i++) {
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      
+      osc.type = 'sine';
+      var t = ctx.currentTime + i * noteDuration;
+      osc.frequency.setValueAtTime(melody[i], t);
+      
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.08, t + 0.05);
+      gain.gain.setValueAtTime(0.08, t + noteDuration * 0.7);
+      gain.gain.linearRampToValueAtTime(0, t + noteDuration * 0.95);
+      
+      osc.start(t);
+      osc.stop(t + noteDuration);
+      bgmNodes.push(osc);
+    }
+    
+    // Loop after melody completes
+    bgmTimer = setTimeout(function() {
+      if (bgmPlaying) playBGMLoop();
+    }, totalDuration * 1000 + 200);
+  }
+
   return {
     init: init,
     playMove: playMove,
@@ -173,6 +233,8 @@ var SoundManager = (function () {
     checkMilestone: checkMilestone,
     toggleMute: toggleMute,
     isMuted: isMuted,
-    resetMilestone: resetMilestone
+    resetMilestone: resetMilestone,
+    startBGM: startBGM,
+    stopBGM: stopBGM
   };
 })();

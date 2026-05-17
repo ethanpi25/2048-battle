@@ -14,16 +14,79 @@ app.use(express.static(path.join(__dirname, 'public'), {
   etag: true,
   lastModified: true,
   setHeaders: function (res, filePath) {
-    // Cache images longer
-    if (filePath.endsWith('.png') || filePath.endsWith('.jpg')) {
+    if (/\.(png|jpg|jpeg|webp|gif|svg|ico)$/i.test(filePath)) {
       res.setHeader('Cache-Control', 'public, max-age=86400');
     }
   }
 }));
 
+const WUXIA_NAMES = [
+  '乔峰', '段誉', '虚竹', '令狐冲', '张无忌',
+  '杨过', '郭靖', '黄蓉', '小龙女', '韦小宝',
+  '岳不群', '任我行', '东方不败', '风清扬', '独孤求败',
+  '萧远山', '慕容复', '黄药师', '欧阳锋', '洪七公',
+  '周伯通', '一灯大师', '张三丰', '灭绝师太', '谢逊',
+  '殷素素', '赵敏', '周芷若', '阿紫', '王语嫣',
+  '李莫愁', '梅超风', '林平之', '余沧海', '左冷禅',
+  '莫大先生', '田伯光', '不戒和尚', '桃谷六仙', '向问天',
+  '任盈盈', '蓝凤凰', '仪琳', '定逸师太', '方证大师',
+  '冲虚道长', '天山童姥', '李秋水', '丁春秋', '游坦之',
+  '萧峰', '鸠摩智', '包不同', '王重阳', '林朝英',
+  '陆小凤', '西门吹雪', '花满楼', '楚留香', '胡铁花'
+];
+
+function getWuxiaName(ip) {
+  let hash = 0;
+  for (let i = 0; i < ip.length; i++) {
+    hash = ((hash << 5) - hash) + ip.charCodeAt(i);
+    hash = hash & hash;
+  }
+  const index = Math.abs(hash) % WUXIA_NAMES.length;
+  return WUXIA_NAMES[index];
+}
+
 const rooms = new Map();
 // Maps IP -> { roomId, playerIndex, disconnectedAt }
 const disconnectedPlayers = new Map();
+
+// Daily leaderboard: { date: 'YYYY-MM-DD', scores: [{ name, score, ip, timestamp }] }
+const leaderboard = { date: '', scores: [] };
+
+function getTodayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function resetLeaderboardIfNewDay() {
+  const today = getTodayStr();
+  if (leaderboard.date !== today) {
+    leaderboard.date = today;
+    leaderboard.scores = [];
+  }
+}
+
+function recordScore(ip, score) {
+  resetLeaderboardIfNewDay();
+  const name = getWuxiaName(ip);
+  leaderboard.scores.push({ name, score, ip, timestamp: Date.now() });
+}
+
+function getTopScores(limit) {
+  resetLeaderboardIfNewDay();
+  const best = {};
+  for (const entry of leaderboard.scores) {
+    if (!best[entry.ip] || entry.score > best[entry.ip].score) {
+      best[entry.ip] = entry;
+    }
+  }
+  return Object.values(best)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit || 20)
+    .map(({ name, score }) => ({ name, score }));
+}
+
+app.get('/api/leaderboard', (req, res) => {
+  res.json({ date: leaderboard.date || getTodayStr(), scores: getTopScores(20) });
+});
 
 const WAIT_TIMEOUT = 60000; // 1 minute waiting for opponent
 const RECONNECT_GRACE = 60000; // 1 minute grace period for reconnection
@@ -44,6 +107,10 @@ function getClientIp(socket) {
 io.on('connection', (socket) => {
   const clientIp = getClientIp(socket);
   socket.clientIp = clientIp;
+
+  const wuxiaName = getWuxiaName(clientIp);
+  socket.wuxiaName = wuxiaName;
+  socket.emit('your-name', { name: wuxiaName });
 
   // Check for reconnection opportunity
   socket.on('check-reconnect', () => {
@@ -159,6 +226,8 @@ io.on('connection', (socket) => {
   socket.on('game-over', ({ score }) => {
     const room = rooms.get(socket.roomId);
     if (!room) return;
+    // Record score to leaderboard
+    recordScore(socket.clientIp, score);
     room.states[socket.id] = { ...room.states[socket.id], score, done: true };
 
     const allDone = room.players.every((p) => room.states[p]?.done);
@@ -179,6 +248,13 @@ io.on('connection', (socket) => {
     if (!room) return;
     room.states = {};
     io.to(socket.roomId).emit('game-start', { roomId: socket.roomId, players: room.players });
+  });
+
+  // Record AI mode score to leaderboard
+  socket.on('report-score', ({ score }) => {
+    if (typeof score === 'number' && score > 0) {
+      recordScore(socket.clientIp, score);
+    }
   });
 
   socket.on('disconnect', () => {

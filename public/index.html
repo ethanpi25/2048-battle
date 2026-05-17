@@ -4,6 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>2048 对战</title>
+
+  <!-- DNS prefetch for socket.io -->
+  <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+
+  <!-- Preload critical resources -->
+  <link rel="preload" href="/css/style.css" as="style">
+  <link rel="preload" href="/images/bg-chinese.jpg" as="image">
+  <link rel="preload" href="/socket.io/socket.io.js" as="script">
+
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
@@ -18,6 +27,7 @@
       <div id="mode-select" class="lobby-actions">
         <button id="btn-ai-mode" class="btn btn-primary">人机对战</button>
         <button id="btn-room-mode" class="btn btn-secondary">房间对战</button>
+        <button id="btn-leaderboard" class="btn btn-leaderboard">🏆 今日榜单</button>
       </div>
 
       <!-- AI Difficulty Selection -->
@@ -61,7 +71,7 @@
 
     <div class="player-section my-section">
       <div class="player-header">
-        <span class="player-name">我</span>
+        <span id="my-name" class="player-name">我</span>
         <div class="score-container">
           <span id="my-score">0</span>
         </div>
@@ -104,6 +114,18 @@
       <div class="results-actions">
         <button id="btn-play-again" class="btn btn-primary">再来一局</button>
         <button id="btn-back-lobby" class="btn btn-secondary">返回大厅</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaderboard View -->
+  <div id="view-leaderboard" class="view">
+    <div class="leaderboard-card">
+      <button id="btn-lb-back" class="btn-back">&larr; 返回大厅</button>
+      <h2 class="lb-title">🏆 今日英雄榜</h2>
+      <p id="lb-date" class="lb-date"></p>
+      <div id="lb-list" class="lb-list">
+        <p class="lb-loading">加载中...</p>
       </div>
     </div>
   </div>

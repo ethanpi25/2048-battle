@@ -25,6 +25,9 @@ var App = (function () {
   var gameTimerInterval = null;
   var gameSecondsLeft = 0;
 
+  // Player wuxia name
+  var myWuxiaName = '侠客';
+
   // Difficulty label map
   var difficultyLabels = {
     easy: '简单',
@@ -32,7 +35,37 @@ var App = (function () {
     hell: '地狱'
   };
 
+  // Cached DOM references
+  var dom = {};
+
+  function cacheDom() {
+    dom.viewLobby = document.getElementById('view-lobby');
+    dom.viewGame = document.getElementById('view-game');
+    dom.viewResults = document.getElementById('view-results');
+    dom.viewLeaderboard = document.getElementById('view-leaderboard');
+    dom.gameTimer = document.getElementById('game-timer');
+    dom.soundBtn = document.getElementById('btn-sound-toggle');
+    dom.lobbyStatus = document.getElementById('lobby-status');
+    dom.roomCodeDisplay = document.getElementById('room-code-display');
+    dom.roomCodeValue = document.getElementById('room-code-value');
+    dom.btnCopyCode = document.getElementById('btn-copy-code');
+    dom.countdownOverlay = document.getElementById('countdown-overlay');
+    dom.countdownText = document.getElementById('countdown-text');
+    dom.myName = document.getElementById('my-name');
+    dom.opponentName = document.getElementById('opponent-name');
+    dom.resultTitle = document.getElementById('result-title');
+    dom.resultMessage = document.getElementById('result-message');
+    dom.resultMyScore = document.getElementById('result-my-score');
+    dom.resultOpponentScore = document.getElementById('result-opponent-score');
+    dom.resultOpponentLabel = document.getElementById('result-opponent-label');
+    dom.inputRoomCode = document.getElementById('input-room-code');
+    dom.lbList = document.getElementById('lb-list');
+    dom.lbDate = document.getElementById('lb-date');
+  }
+
   function init() {
+    cacheDom();
+
     socket = new GameSocket();
     socket.connect();
 
@@ -51,21 +84,27 @@ var App = (function () {
   }
 
   function showView(view) {
-    document.getElementById('view-lobby').classList.remove('active');
-    document.getElementById('view-game').classList.remove('active');
-    document.getElementById('view-results').classList.remove('active');
+    dom.viewLobby.classList.remove('active');
+    dom.viewGame.classList.remove('active');
+    dom.viewResults.classList.remove('active');
+    dom.viewLeaderboard.classList.remove('active');
     document.getElementById('view-' + view).classList.add('active');
     currentView = view;
 
     // Show/hide game timer and sound button based on view
-    var timerEl = document.getElementById('game-timer');
-    var soundBtn = document.getElementById('btn-sound-toggle');
     if (view === 'game') {
-      timerEl.style.display = '';
-      soundBtn.style.display = '';
+      dom.gameTimer.style.display = '';
+      dom.soundBtn.style.display = '';
     } else {
-      timerEl.style.display = 'none';
-      soundBtn.style.display = 'none';
+      dom.gameTimer.style.display = 'none';
+      dom.soundBtn.style.display = 'none';
+    }
+
+    // BGM on game and leaderboard views
+    if (view === 'game' || view === 'leaderboard') {
+      SoundManager.startBGM();
+    } else {
+      SoundManager.stopBGM();
     }
   }
 
@@ -80,8 +119,8 @@ var App = (function () {
       }
     }
     // hide room code and status when switching sections
-    document.getElementById('room-code-display').classList.add('hidden');
-    document.getElementById('lobby-status').textContent = '';
+    dom.roomCodeDisplay.classList.add('hidden');
+    dom.lobbyStatus.textContent = '';
   }
 
   // --- Game Timer ---
@@ -106,22 +145,20 @@ var App = (function () {
       clearInterval(gameTimerInterval);
       gameTimerInterval = null;
     }
-    var timerEl = document.getElementById('game-timer');
-    timerEl.classList.remove('warning');
+    dom.gameTimer.classList.remove('warning');
   }
 
   function updateTimerDisplay() {
     var mins = Math.floor(gameSecondsLeft / 60);
     var secs = gameSecondsLeft % 60;
     var timeStr = mins + ':' + (secs < 10 ? '0' : '') + secs;
-    var timerEl = document.getElementById('game-timer');
-    timerEl.textContent = timeStr;
+    dom.gameTimer.textContent = timeStr;
 
     // Warning state when less than 30 seconds
     if (gameSecondsLeft <= 30 && gameSecondsLeft > 0) {
-      timerEl.classList.add('warning');
+      dom.gameTimer.classList.add('warning');
     } else {
-      timerEl.classList.remove('warning');
+      dom.gameTimer.classList.remove('warning');
     }
   }
 
@@ -143,6 +180,7 @@ var App = (function () {
         winner = 'draw';
       }
       SoundManager.playGameOver();
+      socket.reportScore(playerScore);
       showResults({ winner: winner, opponentScore: opScore, reason: '时间到' });
     } else if (gameMode === 'room') {
       socket.sendGameOver(game.getScore());
@@ -168,7 +206,7 @@ var App = (function () {
     var mins = Math.floor(waitSecondsLeft / 60);
     var secs = waitSecondsLeft % 60;
     var timeStr = mins + ':' + (secs < 10 ? '0' : '') + secs;
-    document.getElementById('lobby-status').textContent = '等待对手加入... ' + timeStr;
+    dom.lobbyStatus.textContent = '等待对手加入... ' + timeStr;
   }
 
   function clearWaitCountdown() {
@@ -186,6 +224,16 @@ var App = (function () {
 
     document.getElementById('btn-room-mode').addEventListener('click', function () {
       showLobbySection('lobby-room-section');
+    });
+
+    // Leaderboard button
+    document.getElementById('btn-leaderboard').addEventListener('click', function () {
+      showLeaderboard();
+    });
+
+    // Leaderboard back button
+    document.getElementById('btn-lb-back').addEventListener('click', function () {
+      showView('lobby');
     });
 
     // Back buttons
@@ -221,25 +269,25 @@ var App = (function () {
     document.getElementById('btn-create').addEventListener('click', function () {
       gameMode = 'room';
       socket.createRoom();
-      document.getElementById('lobby-status').textContent = '创建房间中...';
+      dom.lobbyStatus.textContent = '创建房间中...';
     });
 
     document.getElementById('btn-join').addEventListener('click', function () {
-      var code = document.getElementById('input-room-code').value.trim().toUpperCase();
+      var code = dom.inputRoomCode.value.trim().toUpperCase();
       if (!code) return;
       gameMode = 'room';
       socket.joinRoom(code);
-      document.getElementById('lobby-status').textContent = '加入房间中...';
+      dom.lobbyStatus.textContent = '加入房间中...';
     });
 
     // Copy room code
     document.getElementById('btn-copy-code').addEventListener('click', function () {
-      var code = document.getElementById('room-code-value').textContent;
+      var code = dom.roomCodeValue.textContent;
       if (navigator.clipboard) {
         navigator.clipboard.writeText(code).then(function () {
-          document.getElementById('btn-copy-code').textContent = '\u2713';
+          dom.btnCopyCode.textContent = '\u2713';
           setTimeout(function () {
-            document.getElementById('btn-copy-code').innerHTML = '&#128203;';
+            dom.btnCopyCode.innerHTML = '&#128203;';
           }, 1500);
         });
       }
@@ -248,13 +296,15 @@ var App = (function () {
     // Sound toggle
     document.getElementById('btn-sound-toggle').addEventListener('click', function () {
       var isMuted = SoundManager.toggleMute();
-      var btn = document.getElementById('btn-sound-toggle');
       if (isMuted) {
-        btn.textContent = '🔇';
-        btn.classList.add('muted');
+        dom.soundBtn.textContent = '🔇';
+        dom.soundBtn.classList.add('muted');
       } else {
-        btn.textContent = '🔊';
-        btn.classList.remove('muted');
+        dom.soundBtn.textContent = '🔊';
+        dom.soundBtn.classList.remove('muted');
+        if (currentView === 'game' || currentView === 'leaderboard') {
+          SoundManager.startBGM();
+        }
       }
     });
 
@@ -265,8 +315,8 @@ var App = (function () {
       } else {
         showView('lobby');
         showLobbySection('lobby-room-section');
-        document.getElementById('lobby-status').textContent = '';
-        document.getElementById('room-code-display').classList.add('hidden');
+        dom.lobbyStatus.textContent = '';
+        dom.roomCodeDisplay.classList.add('hidden');
       }
     });
 
@@ -276,15 +326,20 @@ var App = (function () {
       gameActive = false;
       showView('lobby');
       showLobbySection('mode-select');
-      document.getElementById('lobby-status').textContent = '';
-      document.getElementById('room-code-display').classList.add('hidden');
+      dom.lobbyStatus.textContent = '';
+      dom.roomCodeDisplay.classList.add('hidden');
     });
   }
 
   function bindSocket() {
+    socket.on('your-name', function (data) {
+      myWuxiaName = data.name;
+      dom.myName.textContent = myWuxiaName;
+    });
+
     socket.on('room-created', function (data) {
-      document.getElementById('room-code-display').classList.remove('hidden');
-      document.getElementById('room-code-value').textContent = data.roomId;
+      dom.roomCodeDisplay.classList.remove('hidden');
+      dom.roomCodeValue.textContent = data.roomId;
       // Start waiting countdown
       var waitTime = data.waitTime || 60000;
       startWaitCountdown(waitTime);
@@ -292,8 +347,8 @@ var App = (function () {
 
     socket.on('game-start', function () {
       clearWaitCountdown();
-      document.getElementById('opponent-name').textContent = '对手';
-      document.getElementById('result-opponent-label').textContent = '对手';
+      dom.opponentName.textContent = '对手';
+      dom.resultOpponentLabel.textContent = '对手';
       startRoomGame();
     });
 
@@ -472,6 +527,7 @@ var App = (function () {
     }
 
     SoundManager.playGameOver();
+    socket.reportScore(playerScore);
     showResults({ winner: winner, opponentScore: aiScore });
   }
 
@@ -620,6 +676,51 @@ var App = (function () {
     resultOpponentScore.textContent = data.opponentScore || 0;
 
     showView('results');
+  }
+
+  // --- Leaderboard ---
+  function showLeaderboard() {
+    showView('leaderboard');
+    var listEl = document.getElementById('lb-list');
+    listEl.innerHTML = '<p class="lb-loading">加载中...</p>';
+    document.getElementById('lb-date').textContent = '';
+
+    fetch('/api/leaderboard')
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        document.getElementById('lb-date').textContent = data.date || '';
+        renderLeaderboard(data.scores || []);
+      })
+      .catch(function () {
+        listEl.innerHTML = '<p class="lb-empty">加载失败，请稍后重试</p>';
+      });
+  }
+
+  function renderLeaderboard(scores) {
+    var listEl = document.getElementById('lb-list');
+
+    if (scores.length === 0) {
+      listEl.innerHTML = '<p class="lb-empty">今日暂无记录，快去对战吧！</p>';
+      return;
+    }
+
+    var html = '';
+    for (var i = 0; i < scores.length; i++) {
+      var rankClass = 'lb-rank';
+      if (i < 3) rankClass += ' lb-rank-' + (i + 1);
+      html += '<div class="lb-row">';
+      html += '<div class="' + rankClass + '">' + (i + 1) + '</div>';
+      html += '<div class="lb-name">' + escapeHtml(scores[i].name) + '</div>';
+      html += '<div class="lb-score">' + scores[i].score + '</div>';
+      html += '</div>';
+    }
+    listEl.innerHTML = html;
+  }
+
+  function escapeHtml(str) {
+    var div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
   }
 
   return { init: init };

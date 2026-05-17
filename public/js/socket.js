@@ -16,6 +16,10 @@ var GameSocket = (function () {
   GameSocket.prototype.setupListeners = function () {
     var self = this;
 
+    this.socket.on('your-name', function (data) {
+      if (self.handlers['your-name']) self.handlers['your-name'](data);
+    });
+
     this.socket.on('room-created', function (data) {
       if (self.handlers['room-created']) self.handlers['room-created'](data);
     });
@@ -75,6 +79,10 @@ var GameSocket = (function () {
 
   GameSocket.prototype.sendGameOver = function (score) {
     this.socket.emit('game-over', { score: score });
+  };
+
+  GameSocket.prototype.reportScore = function (score) {
+    this.socket.emit('report-score', { score: score });
   };
 
   GameSocket.prototype.checkReconnect = function () {

@@ -17,10 +17,20 @@
 
 body {
   font-family: 'Clear Sans', 'Helvetica Neue', Arial, sans-serif;
-  background: var(--bg) url('/images/bg-chinese.png') center/cover fixed;
+  background: var(--bg);
   color: var(--text);
   min-height: 100vh;
   overflow-x: hidden;
+  position: relative;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: url('/images/bg-chinese.jpg') center/cover no-repeat;
+  z-index: -1;
+  will-change: transform;
 }
 
 /* Views */
@@ -484,6 +494,124 @@ body {
 /* Opponent label */
 .opponent-section .player-name {
   color: #A09486;
+}
+
+/* Leaderboard Button */
+.btn-leaderboard {
+  background: transparent;
+  color: var(--text);
+  border: 2px solid var(--primary);
+  font-size: 0.95rem;
+}
+
+.btn-leaderboard:hover {
+  background: var(--primary);
+  color: var(--white);
+}
+
+/* Leaderboard View */
+#view-leaderboard {
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.leaderboard-card {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  border-radius: 16px;
+  padding: 32px 28px;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: 0 8px 32px var(--shadow);
+}
+
+.lb-title {
+  text-align: center;
+  font-size: 1.6rem;
+  color: var(--text);
+  margin: 8px 0 4px;
+}
+
+.lb-date {
+  text-align: center;
+  font-size: 0.85rem;
+  color: #A09486;
+  margin-bottom: 20px;
+}
+
+.lb-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.lb-loading {
+  text-align: center;
+  color: #A09486;
+  padding: 24px;
+}
+
+.lb-empty {
+  text-align: center;
+  color: #A09486;
+  padding: 32px 16px;
+  font-size: 0.95rem;
+}
+
+.lb-row {
+  display: flex;
+  align-items: center;
+  padding: 12px 8px;
+  border-bottom: 1px solid var(--border);
+  gap: 12px;
+}
+
+.lb-row:last-child {
+  border-bottom: none;
+}
+
+.lb-rank {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+  background: var(--border);
+  color: var(--text);
+}
+
+.lb-rank-1 {
+  background: #FFD700;
+  color: #fff;
+}
+
+.lb-rank-2 {
+  background: #C0C0C0;
+  color: #fff;
+}
+
+.lb-rank-3 {
+  background: #CD7F32;
+  color: #fff;
+}
+
+.lb-name {
+  flex: 1;
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text);
+}
+
+.lb-score {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--primary);
 }
 
 /* Game Timer */

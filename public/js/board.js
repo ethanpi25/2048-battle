@@ -32,42 +32,55 @@ var Board = (function () {
     this.scoreEl = document.getElementById(scoreId);
     this.tiles = [];
     this.currentScore = 0;
+    this.prevGrid = null;
     this.createGrid();
   }
 
   Board.prototype.createGrid = function () {
-    this.container.innerHTML = '';
+    var frag = document.createDocumentFragment();
     this.tiles = [];
     for (var r = 0; r < 4; r++) {
       this.tiles[r] = [];
       for (var c = 0; c < 4; c++) {
         var cell = document.createElement('div');
         cell.className = 'tile';
-        cell.dataset.row = r;
-        cell.dataset.col = c;
-        this.container.appendChild(cell);
+        frag.appendChild(cell);
         this.tiles[r][c] = cell;
       }
     }
+    this.container.innerHTML = '';
+    this.container.appendChild(frag);
   };
 
   Board.prototype.update = function (grid, merged, spawned) {
+    var prev = this.prevGrid;
+
     for (var r = 0; r < 4; r++) {
       for (var c = 0; c < 4; c++) {
-        var tile = this.tiles[r][c];
         var value = grid[r][c];
 
+        // Skip unchanged cells (no merged/spawned animation needed)
+        if (prev && prev[r][c] === value) {
+          // But still check if this cell needs merge/spawn animation
+          var needsAnim = false;
+          if (merged && merged.length) {
+            for (var m = 0; m < merged.length; m++) {
+              if (merged[m].r === r && merged[m].c === c) { needsAnim = true; break; }
+            }
+          }
+          if (spawned && spawned.r === r && spawned.c === c) needsAnim = true;
+          if (!needsAnim) continue;
+        }
+
+        var tile = this.tiles[r][c];
         tile.textContent = value || '';
-        tile.className = 'tile';
 
         if (value) {
-          tile.classList.add('tile-filled');
+          tile.className = 'tile tile-filled' + (value >= 1024 ? ' tile-small-text' : '');
           tile.style.backgroundColor = TILE_COLORS[value] || '#3C3A32';
           tile.style.color = TILE_TEXT_COLORS[value] || '#F9F6F2';
-          if (value >= 1024) {
-            tile.classList.add('tile-small-text');
-          }
         } else {
+          tile.className = 'tile';
           tile.style.backgroundColor = '';
           tile.style.color = '';
         }
@@ -76,14 +89,16 @@ var Board = (function () {
 
     if (merged && merged.length) {
       for (var i = 0; i < merged.length; i++) {
-        var m = merged[i];
-        this.tiles[m.r][m.c].classList.add('tile-merge');
+        this.tiles[merged[i].r][merged[i].c].classList.add('tile-merge');
       }
     }
 
     if (spawned) {
       this.tiles[spawned.r][spawned.c].classList.add('tile-new');
     }
+
+    // Store current grid for diffing
+    this.prevGrid = grid.map(function (row) { return row.slice(); });
   };
 
   Board.prototype.updateScore = function (score) {
@@ -106,6 +121,7 @@ var Board = (function () {
 
   Board.prototype.reset = function () {
     this.currentScore = 0;
+    this.prevGrid = null;
     this.scoreEl.textContent = '0';
     this.createGrid();
   };
