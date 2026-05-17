@@ -17,7 +17,7 @@
 
 body {
   font-family: 'Clear Sans', 'Helvetica Neue', Arial, sans-serif;
-  background: var(--bg);
+  background: var(--bg) url('/images/bg-chinese.png') center/cover fixed;
   color: var(--text);
   min-height: 100vh;
   overflow-x: hidden;
@@ -47,7 +47,8 @@ body {
 }
 
 .lobby-card {
-  background: var(--white);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
   border-radius: 16px;
   padding: 48px 36px;
   max-width: 400px;
@@ -270,7 +271,7 @@ body {
   align-items: flex-start;
   gap: 40px;
   min-height: 100vh;
-  padding: 30px 20px;
+  padding: 56px 20px 30px;
   position: relative;
 }
 
@@ -411,7 +412,8 @@ body {
 }
 
 .results-card {
-  background: var(--white);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
   border-radius: 16px;
   padding: 48px 36px;
   max-width: 400px;
@@ -484,13 +486,70 @@ body {
   color: #A09486;
 }
 
+/* Game Timer */
+.game-timer {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(187, 173, 160, 0.9);
+  color: #fff;
+  padding: 8px 24px;
+  border-radius: 20px;
+  font-size: 1.3rem;
+  font-weight: 700;
+  z-index: 50;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  letter-spacing: 2px;
+}
+
+.game-timer.warning {
+  background: rgba(246, 124, 95, 0.9);
+  animation: timerPulse 1s infinite;
+}
+
+@keyframes timerPulse {
+  0%, 100% { transform: translateX(-50%) scale(1); }
+  50% { transform: translateX(-50%) scale(1.05); }
+}
+
+/* Sound Toggle Button */
+.btn-sound {
+  position: fixed;
+  top: 12px;
+  right: 16px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(4px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  font-size: 1.2rem;
+  cursor: pointer;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s, opacity 0.15s;
+}
+
+.btn-sound:active {
+  transform: scale(0.9);
+}
+
+.btn-sound.muted {
+  opacity: 0.5;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   #view-game {
     flex-direction: column;
     align-items: center;
     gap: 20px;
-    padding: 16px;
+    padding: 56px 16px 16px;
     touch-action: none;
     overflow: hidden;
   }

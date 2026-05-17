@@ -20,12 +20,26 @@ var App = (function () {
   var waitInterval = null;
   var waitSecondsLeft = 0;
 
+  // Game timer state (5 minutes countdown)
+  var GAME_DURATION = 5 * 60; // 5 minutes in seconds
+  var gameTimerInterval = null;
+  var gameSecondsLeft = 0;
+
+  // Difficulty label map
+  var difficultyLabels = {
+    easy: '简单',
+    medium: '中等',
+    hell: '地狱'
+  };
+
   function init() {
     socket = new GameSocket();
     socket.connect();
 
     myBoard = new Board('my-grid', 'my-score');
     opponentBoard = new Board('opponent-grid', 'opponent-score');
+
+    SoundManager.init();
 
     bindUI();
     bindSocket();
@@ -42,6 +56,17 @@ var App = (function () {
     document.getElementById('view-results').classList.remove('active');
     document.getElementById('view-' + view).classList.add('active');
     currentView = view;
+
+    // Show/hide game timer and sound button based on view
+    var timerEl = document.getElementById('game-timer');
+    var soundBtn = document.getElementById('btn-sound-toggle');
+    if (view === 'game') {
+      timerEl.style.display = '';
+      soundBtn.style.display = '';
+    } else {
+      timerEl.style.display = 'none';
+      soundBtn.style.display = 'none';
+    }
   }
 
   function showLobbySection(sectionId) {
@@ -59,10 +84,72 @@ var App = (function () {
     document.getElementById('lobby-status').textContent = '';
   }
 
-  function capitalize(str) {
-    return str.charAt(0).toUpperCase() + str.slice(1);
+  // --- Game Timer ---
+  function startGameTimer() {
+    stopGameTimer();
+    gameSecondsLeft = GAME_DURATION;
+    updateTimerDisplay();
+    gameTimerInterval = setInterval(function () {
+      gameSecondsLeft--;
+      if (gameSecondsLeft <= 0) {
+        gameSecondsLeft = 0;
+        updateTimerDisplay();
+        onTimerExpired();
+      } else {
+        updateTimerDisplay();
+      }
+    }, 1000);
   }
 
+  function stopGameTimer() {
+    if (gameTimerInterval) {
+      clearInterval(gameTimerInterval);
+      gameTimerInterval = null;
+    }
+    var timerEl = document.getElementById('game-timer');
+    timerEl.classList.remove('warning');
+  }
+
+  function updateTimerDisplay() {
+    var mins = Math.floor(gameSecondsLeft / 60);
+    var secs = gameSecondsLeft % 60;
+    var timeStr = mins + ':' + (secs < 10 ? '0' : '') + secs;
+    var timerEl = document.getElementById('game-timer');
+    timerEl.textContent = timeStr;
+
+    // Warning state when less than 30 seconds
+    if (gameSecondsLeft <= 30 && gameSecondsLeft > 0) {
+      timerEl.classList.add('warning');
+    } else {
+      timerEl.classList.remove('warning');
+    }
+  }
+
+  function onTimerExpired() {
+    stopGameTimer();
+    gameActive = false;
+
+    if (gameMode === 'ai') {
+      // Get AI score before stopping it
+      var opScore = aiOpponent ? aiOpponent.getScore() : aiScore;
+      stopAI();
+      var playerScore = game.getScore();
+      var winner;
+      if (playerScore > opScore) {
+        winner = 'you';
+      } else if (playerScore < opScore) {
+        winner = 'lose';
+      } else {
+        winner = 'draw';
+      }
+      SoundManager.playGameOver();
+      showResults({ winner: winner, opponentScore: opScore, reason: '时间到' });
+    } else if (gameMode === 'room') {
+      socket.sendGameOver(game.getScore());
+    }
+  }
+
+  // --- Wait countdown ---
   function startWaitCountdown(totalMs) {
     clearWaitCountdown();
     waitSecondsLeft = Math.ceil(totalMs / 1000);
@@ -81,7 +168,7 @@ var App = (function () {
     var mins = Math.floor(waitSecondsLeft / 60);
     var secs = waitSecondsLeft % 60;
     var timeStr = mins + ':' + (secs < 10 ? '0' : '') + secs;
-    document.getElementById('lobby-status').textContent = 'Waiting for opponent... ' + timeStr;
+    document.getElementById('lobby-status').textContent = '等待对手加入... ' + timeStr;
   }
 
   function clearWaitCountdown() {
@@ -134,7 +221,7 @@ var App = (function () {
     document.getElementById('btn-create').addEventListener('click', function () {
       gameMode = 'room';
       socket.createRoom();
-      document.getElementById('lobby-status').textContent = 'Creating room...';
+      document.getElementById('lobby-status').textContent = '创建房间中...';
     });
 
     document.getElementById('btn-join').addEventListener('click', function () {
@@ -142,7 +229,7 @@ var App = (function () {
       if (!code) return;
       gameMode = 'room';
       socket.joinRoom(code);
-      document.getElementById('lobby-status').textContent = 'Joining room...';
+      document.getElementById('lobby-status').textContent = '加入房间中...';
     });
 
     // Copy room code
@@ -155,6 +242,19 @@ var App = (function () {
             document.getElementById('btn-copy-code').innerHTML = '&#128203;';
           }, 1500);
         });
+      }
+    });
+
+    // Sound toggle
+    document.getElementById('btn-sound-toggle').addEventListener('click', function () {
+      var isMuted = SoundManager.toggleMute();
+      var btn = document.getElementById('btn-sound-toggle');
+      if (isMuted) {
+        btn.textContent = '🔇';
+        btn.classList.add('muted');
+      } else {
+        btn.textContent = '🔊';
+        btn.classList.remove('muted');
       }
     });
 
@@ -172,6 +272,7 @@ var App = (function () {
 
     document.getElementById('btn-back-lobby').addEventListener('click', function () {
       stopAI();
+      stopGameTimer();
       gameActive = false;
       showView('lobby');
       showLobbySection('mode-select');
@@ -191,8 +292,8 @@ var App = (function () {
 
     socket.on('game-start', function () {
       clearWaitCountdown();
-      document.getElementById('opponent-name').textContent = 'Opponent';
-      document.getElementById('result-opponent-label').textContent = 'Opponent';
+      document.getElementById('opponent-name').textContent = '对手';
+      document.getElementById('result-opponent-label').textContent = '对手';
       startRoomGame();
     });
 
@@ -203,18 +304,31 @@ var App = (function () {
 
     socket.on('game-over', function (data) {
       gameActive = false;
+      stopGameTimer();
       // translate winner socket ID to 'you' / 'lose'
-      if (data.winner === socket.getId()) {
+      var myId = socket.getId();
+      var opponentScore = 0;
+      if (data.scores) {
+        for (var i = 0; i < data.scores.length; i++) {
+          if (data.scores[i].id !== myId) {
+            opponentScore = data.scores[i].score;
+          }
+        }
+      }
+      if (data.winner === myId) {
         data.winner = 'you';
       } else if (data.winner !== 'draw') {
         data.winner = 'lose';
       }
+      data.opponentScore = opponentScore;
+      SoundManager.playGameOver();
       showResults(data);
     });
 
     socket.on('opponent-disconnected', function () {
       gameActive = false;
-      showResults({ winner: 'you', reason: 'Opponent disconnected' });
+      stopGameTimer();
+      showResults({ winner: 'you', reason: '对手已断开连接' });
     });
 
     socket.on('opponent-temp-disconnect', function () {
@@ -222,7 +336,7 @@ var App = (function () {
       var overlay = document.getElementById('countdown-overlay');
       var text = document.getElementById('countdown-text');
       overlay.classList.remove('hidden');
-      text.textContent = 'Opponent reconnecting...';
+      text.textContent = '对手重连中...';
     });
 
     socket.on('opponent-reconnected', function () {
@@ -246,8 +360,8 @@ var App = (function () {
       opponentBoard.reset();
 
       showView('game');
-      document.getElementById('opponent-name').textContent = 'Opponent';
-      document.getElementById('result-opponent-label').textContent = 'Opponent';
+      document.getElementById('opponent-name').textContent = '对手';
+      document.getElementById('result-opponent-label').textContent = '对手';
 
       // Restore my state
       if (data.myState && data.myState.grid) {
@@ -268,17 +382,18 @@ var App = (function () {
       }
 
       gameActive = true;
+      startGameTimer();
     });
 
     socket.on('room-expired', function (data) {
       clearWaitCountdown();
-      document.getElementById('lobby-status').textContent = data.message || 'Room expired';
+      document.getElementById('lobby-status').textContent = data.message || '房间已过期';
       document.getElementById('room-code-display').classList.add('hidden');
     });
 
     socket.on('error', function (data) {
       clearWaitCountdown();
-      document.getElementById('lobby-status').textContent = data.message || 'An error occurred';
+      document.getElementById('lobby-status').textContent = data.message || '发生错误';
     });
   }
 
@@ -287,6 +402,7 @@ var App = (function () {
     game = new Game2048();
     myBoard.reset();
     opponentBoard.reset();
+    SoundManager.resetMilestone();
 
     showView('game');
     runCountdown(function () {
@@ -295,21 +411,25 @@ var App = (function () {
       myBoard.updateScore(state.score);
       gameActive = true;
       socket.sendState(state);
+      startGameTimer();
     });
   }
 
   // --- AI game (new flow) ---
   function startAIGame() {
     stopAI();
+    stopGameTimer();
     game = new Game2048();
     myBoard.reset();
     opponentBoard.reset();
     playerDone = false;
     aiDone = false;
     aiScore = 0;
+    SoundManager.resetMilestone();
 
-    document.getElementById('opponent-name').textContent = 'AI (' + capitalize(aiDifficulty) + ')';
-    document.getElementById('result-opponent-label').textContent = 'AI (' + capitalize(aiDifficulty) + ')';
+    var label = 'AI (' + difficultyLabels[aiDifficulty] + ')';
+    document.getElementById('opponent-name').textContent = label;
+    document.getElementById('result-opponent-label').textContent = label;
 
     showView('game');
     runCountdown(function () {
@@ -320,6 +440,7 @@ var App = (function () {
 
       aiOpponent = new AIOpponent(aiDifficulty, onAIUpdate, onAIGameOver);
       aiOpponent.start();
+      startGameTimer();
     });
   }
 
@@ -337,6 +458,7 @@ var App = (function () {
   function checkAIGameEnd() {
     if (!playerDone || !aiDone) return;
     stopAI();
+    stopGameTimer();
     gameActive = false;
 
     var playerScore = game.getScore();
@@ -349,6 +471,7 @@ var App = (function () {
       winner = 'draw';
     }
 
+    SoundManager.playGameOver();
     showResults({ winner: winner, opponentScore: aiScore });
   }
 
@@ -365,7 +488,7 @@ var App = (function () {
     var text = document.getElementById('countdown-text');
     overlay.classList.remove('hidden');
 
-    var counts = ['3', '2', '1', 'GO!'];
+    var counts = ['3', '2', '1', '开始!'];
     var i = 0;
 
     function showNext() {
@@ -378,6 +501,7 @@ var App = (function () {
       text.classList.remove('countdown-animate');
       void text.offsetWidth;
       text.classList.add('countdown-animate');
+      SoundManager.playCountdown();
       i++;
       setTimeout(showNext, 800);
     }
@@ -391,13 +515,24 @@ var App = (function () {
     var result = game.move(direction);
     if (!result.moved) return;
 
+    // Play sound effects
+    if (result.merged && result.merged.length > 0) {
+      SoundManager.playMerge();
+    } else {
+      SoundManager.playMove();
+    }
+
     myBoard.update(result.grid, result.merged, result.spawned);
     myBoard.updateScore(result.score);
+
+    // Check score milestone for voice effect
+    SoundManager.checkMilestone(result.score);
 
     if (gameMode === 'room') {
       socket.sendState({ grid: result.grid, score: result.score });
       if (result.gameOver) {
         gameActive = false;
+        stopGameTimer();
         socket.sendGameOver(result.score);
       }
     } else if (gameMode === 'ai') {
@@ -473,10 +608,10 @@ var App = (function () {
     var resultOpponentScore = document.getElementById('result-opponent-score');
 
     if (data.winner === 'you' || data.winner === 'draw') {
-      resultTitle.textContent = data.winner === 'draw' ? "It's a Draw!" : 'You Win!';
+      resultTitle.textContent = data.winner === 'draw' ? '平局！' : '你赢了！';
       resultTitle.className = data.winner === 'draw' ? 'result-draw' : 'result-win';
     } else {
-      resultTitle.textContent = 'You Lose';
+      resultTitle.textContent = '你输了';
       resultTitle.className = 'result-lose';
     }
 

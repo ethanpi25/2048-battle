@@ -8,7 +8,18 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-app.use(express.static(path.join(__dirname, 'public')));
+// Static files with cache headers for faster loading
+app.use(express.static(path.join(__dirname, 'public'), {
+  maxAge: '1h',
+  etag: true,
+  lastModified: true,
+  setHeaders: function (res, filePath) {
+    // Cache images longer
+    if (filePath.endsWith('.png') || filePath.endsWith('.jpg')) {
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+    }
+  }
+}));
 
 const rooms = new Map();
 // Maps IP -> { roomId, playerIndex, disconnectedAt }
@@ -153,7 +164,12 @@ io.on('connection', (socket) => {
     const allDone = room.players.every((p) => room.states[p]?.done);
     if (allDone) {
       const scores = room.players.map((p) => ({ id: p, score: room.states[p].score }));
-      const winner = scores[0].score >= scores[1].score ? scores[0].id : scores[1].id;
+      let winner;
+      if (scores[0].score === scores[1].score) {
+        winner = 'draw';
+      } else {
+        winner = scores[0].score > scores[1].score ? scores[0].id : scores[1].id;
+      }
       io.to(socket.roomId).emit('game-over', { winner, scores });
     }
   });

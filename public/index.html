@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>2048 Battle</title>
+  <title>2048 对战</title>
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
@@ -11,42 +11,42 @@
   <!-- Lobby View -->
   <div id="view-lobby" class="view active">
     <div class="lobby-card">
-      <h1>2048 Battle</h1>
-      <p class="subtitle">Choose your battle mode</p>
+      <h1>2048 对战</h1>
+      <p class="subtitle">选择对战模式</p>
 
       <!-- Mode Selection -->
       <div id="mode-select" class="lobby-actions">
-        <button id="btn-ai-mode" class="btn btn-primary">AI Battle</button>
-        <button id="btn-room-mode" class="btn btn-secondary">Room Battle</button>
+        <button id="btn-ai-mode" class="btn btn-primary">人机对战</button>
+        <button id="btn-room-mode" class="btn btn-secondary">房间对战</button>
       </div>
 
       <!-- AI Difficulty Selection -->
       <div id="lobby-ai-section" class="lobby-actions hidden">
-        <button id="btn-ai-back" class="btn-back">&larr; Back</button>
-        <p class="section-title">Select Difficulty</p>
-        <button id="btn-diff-easy" class="btn btn-diff btn-diff-easy">Easy</button>
-        <button id="btn-diff-medium" class="btn btn-diff btn-diff-medium">Medium</button>
-        <button id="btn-diff-hell" class="btn btn-diff btn-diff-hell">Hell</button>
+        <button id="btn-ai-back" class="btn-back">&larr; 返回</button>
+        <p class="section-title">选择难度</p>
+        <button id="btn-diff-easy" class="btn btn-diff btn-diff-easy">简单</button>
+        <button id="btn-diff-medium" class="btn btn-diff btn-diff-medium">中等</button>
+        <button id="btn-diff-hell" class="btn btn-diff btn-diff-hell">地狱</button>
       </div>
 
       <!-- Room Lobby -->
       <div id="lobby-room-section" class="lobby-actions hidden">
-        <button id="btn-room-back" class="btn-back">&larr; Back</button>
-        <button id="btn-create" class="btn btn-primary">Create Room</button>
+        <button id="btn-room-back" class="btn-back">&larr; 返回</button>
+        <button id="btn-create" class="btn btn-primary">创建房间</button>
 
-        <div class="divider">or</div>
+        <div class="divider">或</div>
 
         <div class="join-group">
-          <input id="input-room-code" class="input-code" type="text" placeholder="CODE" maxlength="6">
+          <input id="input-room-code" class="input-code" type="text" placeholder="房间码" maxlength="6">
         </div>
-        <button id="btn-join" class="btn btn-secondary">Join</button>
+        <button id="btn-join" class="btn btn-secondary">加入</button>
       </div>
 
       <div id="room-code-display" class="room-code-display hidden">
-        <div class="label">Share this code</div>
+        <div class="label">分享房间码</div>
         <div class="code-row">
           <div id="room-code-value" class="code"></div>
-          <button id="btn-copy-code" class="btn-copy" title="Copy">&#128203;</button>
+          <button id="btn-copy-code" class="btn-copy" title="复制">&#128203;</button>
         </div>
       </div>
 
@@ -56,9 +56,12 @@
 
   <!-- Game View -->
   <div id="view-game" class="view">
+    <div id="game-timer" class="game-timer">5:00</div>
+    <button id="btn-sound-toggle" class="btn-sound" title="音效开关">🔊</button>
+
     <div class="player-section my-section">
       <div class="player-header">
-        <span class="player-name">You</span>
+        <span class="player-name">我</span>
         <div class="score-container">
           <span id="my-score">0</span>
         </div>
@@ -68,7 +71,7 @@
 
     <div class="player-section opponent-section">
       <div class="player-header">
-        <span id="opponent-name" class="player-name">Opponent</span>
+        <span id="opponent-name" class="player-name">对手</span>
         <div class="score-container">
           <span id="opponent-score">0</span>
         </div>
@@ -84,32 +87,33 @@
   <!-- Results View -->
   <div id="view-results" class="view">
     <div class="results-card">
-      <h2 id="result-title" class="result-win">You Win!</h2>
+      <h2 id="result-title" class="result-win">你赢了！</h2>
       <p id="result-message" class="result-message"></p>
 
       <div class="result-scores">
         <div class="result-score-item">
-          <div class="label">Your Score</div>
+          <div class="label">我的得分</div>
           <div id="result-my-score" class="value">0</div>
         </div>
         <div class="result-score-item">
-          <div id="result-opponent-label" class="label">Opponent</div>
+          <div id="result-opponent-label" class="label">对手</div>
           <div id="result-opponent-score" class="value">0</div>
         </div>
       </div>
 
       <div class="results-actions">
-        <button id="btn-play-again" class="btn btn-primary">Play Again</button>
-        <button id="btn-back-lobby" class="btn btn-secondary">Back to Lobby</button>
+        <button id="btn-play-again" class="btn btn-primary">再来一局</button>
+        <button id="btn-back-lobby" class="btn btn-secondary">返回大厅</button>
       </div>
     </div>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="/js/game.js"></script>
-  <script src="/js/board.js"></script>
-  <script src="/js/socket.js"></script>
-  <script src="/js/ai.js"></script>
-  <script src="/js/main.js"></script>
+  <script defer src="/js/game.js"></script>
+  <script defer src="/js/board.js"></script>
+  <script defer src="/js/socket.js"></script>
+  <script defer src="/js/ai.js"></script>
+  <script defer src="/js/sound.js"></script>
+  <script defer src="/js/main.js"></script>
 </body>
 </html>
