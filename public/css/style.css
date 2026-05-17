@@ -402,6 +402,30 @@ body {
   color: #A09486;
 }
 
+/* D-Pad */
+.dpad-container {
+  display: none;
+  grid-template: repeat(3, 48px) / repeat(3, 48px);
+  justify-content: center;
+  gap: 4px;
+  margin-top: 16px;
+}
+
+.dpad-btn {
+  border: none;
+  border-radius: 8px;
+  background: var(--board-bg);
+  color: var(--white);
+  font-size: 20px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.dpad-btn:active {
+  background: var(--primary);
+  transform: scale(0.9);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   #view-game {
@@ -409,16 +433,18 @@ body {
     align-items: center;
     gap: 20px;
     padding: 16px;
+    touch-action: none;
+    overflow: hidden;
   }
 
   .grid {
-    width: 300px;
-    height: 300px;
+    width: min(300px, calc(100vw - 32px));
+    height: min(300px, calc(100vw - 32px));
   }
 
   .opponent-section .grid {
-    width: 210px;
-    height: 210px;
+    width: min(210px, calc(70vw - 24px));
+    height: min(210px, calc(70vw - 24px));
   }
 
   .opponent-section .tile {
@@ -427,6 +453,30 @@ body {
 
   .opponent-section .tile-small-text {
     font-size: 0.8rem;
+  }
+
+  .dpad-container {
+    display: grid;
+  }
+}
+
+@media (max-width: 380px) {
+  .grid {
+    gap: 6px;
+    padding: 6px;
+  }
+
+  .tile {
+    font-size: 1.4rem;
+    border-radius: 4px;
+  }
+
+  .tile-small-text {
+    font-size: 1rem;
+  }
+
+  .dpad-container {
+    grid-template: repeat(3, 42px) / repeat(3, 42px);
   }
 }
 

@@ -167,6 +167,15 @@ var App = (function () {
       touchStartY = e.touches[0].clientY;
     }, { passive: true });
 
+    gameArea.addEventListener('touchmove', function (e) {
+      if (!touchStartX || !touchStartY) return;
+      var dx = e.touches[0].clientX - touchStartX;
+      var dy = e.touches[0].clientY - touchStartY;
+      if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+
     gameArea.addEventListener('touchend', function (e) {
       if (!gameActive) return;
 
@@ -186,6 +195,15 @@ var App = (function () {
 
       e.preventDefault();
       handleMove(direction);
+    }, { passive: false });
+
+    var dpadBtns = document.querySelectorAll('.dpad-btn');
+    dpadBtns.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var dir = this.getAttribute('data-dir');
+        handleMove(dir);
+        if (navigator.vibrate) navigator.vibrate(10);
+      });
     });
   }
 
