@@ -165,10 +165,233 @@ var SoundManager = (function () {
     lastMilestone = 0;
   }
 
-  // BGM for leaderboard - Chinese pentatonic melody loop
+  // BGM - 20 upbeat energetic tracks, randomly selected
   var bgmPlaying = false;
   var bgmNodes = [];
   var bgmTimer = null;
+  var lastTrackIndex = -1;
+
+  var bgmTracks = [
+    // Track 1: Bouncy high energy
+    { melody: [
+      {f:784,d:0.15},{f:880,d:0.15},{f:1047,d:0.12},{f:880,d:0.18},{f:784,d:0.12},
+      {f:659,d:0.15},{f:784,d:0.2},{f:523,d:0.12},{f:659,d:0.15},{f:784,d:0.12},
+      {f:880,d:0.18},{f:1047,d:0.15},{f:1175,d:0.12},{f:1047,d:0.15},{f:880,d:0.12},
+      {f:784,d:0.2},{f:659,d:0.15},{f:784,d:0.12},{f:880,d:0.15},{f:1047,d:0.2}
+    ], bass: [
+      {f:262,d:0.3},{f:196,d:0.3},{f:220,d:0.3},{f:262,d:0.3},
+      {f:196,d:0.3},{f:262,d:0.3},{f:220,d:0.3},{f:196,d:0.3}
+    ], wave: 'triangle' },
+
+    // Track 2: Cheerful dance
+    { melody: [
+      {f:659,d:0.12},{f:784,d:0.12},{f:880,d:0.18},{f:784,d:0.12},{f:659,d:0.18},
+      {f:523,d:0.12},{f:659,d:0.12},{f:784,d:0.25},{f:880,d:0.12},{f:1047,d:0.12},
+      {f:880,d:0.18},{f:784,d:0.12},{f:659,d:0.12},{f:784,d:0.18},{f:880,d:0.12},
+      {f:1047,d:0.2},{f:880,d:0.12},{f:784,d:0.15},{f:659,d:0.18},{f:523,d:0.25}
+    ], bass: [
+      {f:196,d:0.25},{f:262,d:0.25},{f:220,d:0.25},{f:196,d:0.25},
+      {f:262,d:0.25},{f:220,d:0.25},{f:196,d:0.25},{f:262,d:0.35}
+    ], wave: 'triangle' },
+
+    // Track 3: Sprinting forward
+    { melody: [
+      {f:1047,d:0.1},{f:880,d:0.1},{f:784,d:0.1},{f:880,d:0.15},{f:1047,d:0.1},
+      {f:1175,d:0.15},{f:1047,d:0.1},{f:880,d:0.1},{f:784,d:0.15},{f:659,d:0.1},
+      {f:784,d:0.1},{f:880,d:0.15},{f:1047,d:0.1},{f:1175,d:0.1},{f:1319,d:0.15},
+      {f:1175,d:0.1},{f:1047,d:0.1},{f:880,d:0.15},{f:784,d:0.1},{f:880,d:0.2}
+    ], bass: [
+      {f:262,d:0.2},{f:330,d:0.2},{f:262,d:0.2},{f:196,d:0.2},
+      {f:262,d:0.2},{f:330,d:0.2},{f:262,d:0.2},{f:196,d:0.25}
+    ], wave: 'square' },
+
+    // Track 4: Playful skip
+    { melody: [
+      {f:523,d:0.18},{f:659,d:0.12},{f:784,d:0.18},{f:659,d:0.12},{f:523,d:0.12},
+      {f:659,d:0.18},{f:784,d:0.12},{f:880,d:0.18},{f:784,d:0.12},{f:659,d:0.18},
+      {f:784,d:0.12},{f:880,d:0.12},{f:1047,d:0.18},{f:880,d:0.12},{f:784,d:0.12},
+      {f:659,d:0.18},{f:523,d:0.12},{f:659,d:0.18},{f:784,d:0.18},{f:523,d:0.25}
+    ], bass: [
+      {f:196,d:0.35},{f:220,d:0.35},{f:262,d:0.35},{f:220,d:0.35},
+      {f:196,d:0.35},{f:262,d:0.35},{f:220,d:0.3}
+    ], wave: 'triangle' },
+
+    // Track 5: Victory march
+    { melody: [
+      {f:784,d:0.2},{f:784,d:0.1},{f:880,d:0.15},{f:1047,d:0.2},{f:880,d:0.1},
+      {f:784,d:0.15},{f:659,d:0.2},{f:784,d:0.1},{f:880,d:0.15},{f:784,d:0.2},
+      {f:659,d:0.1},{f:523,d:0.15},{f:659,d:0.2},{f:784,d:0.1},{f:880,d:0.15},
+      {f:1047,d:0.2},{f:1175,d:0.1},{f:1047,d:0.15},{f:880,d:0.2},{f:784,d:0.2}
+    ], bass: [
+      {f:262,d:0.35},{f:196,d:0.35},{f:220,d:0.35},{f:262,d:0.35},
+      {f:330,d:0.35},{f:262,d:0.35},{f:196,d:0.35}
+    ], wave: 'triangle' },
+
+    // Track 6: Quick staccato
+    { melody: [
+      {f:880,d:0.1},{f:1047,d:0.1},{f:880,d:0.1},{f:784,d:0.15},{f:880,d:0.1},
+      {f:659,d:0.1},{f:784,d:0.15},{f:880,d:0.1},{f:1047,d:0.1},{f:1175,d:0.1},
+      {f:1047,d:0.15},{f:880,d:0.1},{f:784,d:0.1},{f:880,d:0.1},{f:1047,d:0.15},
+      {f:880,d:0.1},{f:784,d:0.1},{f:659,d:0.1},{f:784,d:0.15},{f:880,d:0.2}
+    ], bass: [
+      {f:220,d:0.2},{f:262,d:0.2},{f:220,d:0.2},{f:196,d:0.2},
+      {f:220,d:0.2},{f:262,d:0.2},{f:330,d:0.2},{f:262,d:0.25}
+    ], wave: 'square' },
+
+    // Track 7: Sunshine waltz
+    { melody: [
+      {f:659,d:0.2},{f:784,d:0.1},{f:880,d:0.2},{f:784,d:0.1},{f:659,d:0.2},
+      {f:784,d:0.1},{f:1047,d:0.2},{f:880,d:0.1},{f:784,d:0.2},{f:659,d:0.1},
+      {f:523,d:0.2},{f:659,d:0.1},{f:784,d:0.2},{f:880,d:0.1},{f:1047,d:0.2},
+      {f:880,d:0.1},{f:784,d:0.2},{f:659,d:0.1},{f:784,d:0.2},{f:659,d:0.25}
+    ], bass: [
+      {f:196,d:0.3},{f:262,d:0.3},{f:220,d:0.3},{f:262,d:0.3},
+      {f:196,d:0.3},{f:220,d:0.3},{f:262,d:0.3},{f:196,d:0.35}
+    ], wave: 'triangle' },
+
+    // Track 8: Racing pulse
+    { melody: [
+      {f:1047,d:0.12},{f:1175,d:0.12},{f:1319,d:0.12},{f:1175,d:0.12},{f:1047,d:0.15},
+      {f:880,d:0.12},{f:784,d:0.12},{f:880,d:0.15},{f:1047,d:0.12},{f:1175,d:0.12},
+      {f:1047,d:0.15},{f:880,d:0.12},{f:784,d:0.12},{f:659,d:0.15},{f:784,d:0.12},
+      {f:880,d:0.12},{f:1047,d:0.15},{f:1175,d:0.12},{f:1047,d:0.12},{f:880,d:0.2}
+    ], bass: [
+      {f:262,d:0.25},{f:330,d:0.25},{f:262,d:0.25},{f:220,d:0.25},
+      {f:262,d:0.25},{f:196,d:0.25},{f:262,d:0.25},{f:330,d:0.3}
+    ], wave: 'sawtooth' },
+
+    // Track 9: Happy bounce
+    { melody: [
+      {f:523,d:0.15},{f:784,d:0.15},{f:523,d:0.12},{f:880,d:0.15},{f:523,d:0.12},
+      {f:784,d:0.15},{f:659,d:0.12},{f:880,d:0.18},{f:784,d:0.12},{f:659,d:0.15},
+      {f:784,d:0.12},{f:1047,d:0.18},{f:880,d:0.12},{f:784,d:0.15},{f:659,d:0.12},
+      {f:784,d:0.15},{f:880,d:0.12},{f:1047,d:0.15},{f:880,d:0.12},{f:784,d:0.2}
+    ], bass: [
+      {f:262,d:0.28},{f:196,d:0.28},{f:220,d:0.28},{f:262,d:0.28},
+      {f:196,d:0.28},{f:220,d:0.28},{f:262,d:0.28},{f:196,d:0.3}
+    ], wave: 'triangle' },
+
+    // Track 10: Carnival swing
+    { melody: [
+      {f:880,d:0.12},{f:784,d:0.18},{f:880,d:0.12},{f:1047,d:0.18},{f:880,d:0.12},
+      {f:784,d:0.18},{f:659,d:0.12},{f:784,d:0.18},{f:880,d:0.12},{f:1047,d:0.18},
+      {f:1175,d:0.12},{f:1047,d:0.18},{f:880,d:0.12},{f:784,d:0.18},{f:659,d:0.12},
+      {f:784,d:0.18},{f:880,d:0.12},{f:784,d:0.18},{f:659,d:0.12},{f:784,d:0.22}
+    ], bass: [
+      {f:220,d:0.3},{f:262,d:0.3},{f:330,d:0.3},{f:262,d:0.3},
+      {f:220,d:0.3},{f:196,d:0.3},{f:220,d:0.3},{f:262,d:0.3}
+    ], wave: 'triangle' },
+
+    // Track 11: Electric groove
+    { melody: [
+      {f:659,d:0.1},{f:659,d:0.1},{f:784,d:0.15},{f:880,d:0.1},{f:880,d:0.1},
+      {f:1047,d:0.15},{f:880,d:0.1},{f:784,d:0.1},{f:659,d:0.15},{f:784,d:0.1},
+      {f:784,d:0.1},{f:880,d:0.15},{f:1047,d:0.1},{f:1047,d:0.1},{f:1175,d:0.15},
+      {f:1047,d:0.1},{f:880,d:0.1},{f:784,d:0.15},{f:659,d:0.1},{f:784,d:0.2}
+    ], bass: [
+      {f:196,d:0.2},{f:196,d:0.2},{f:262,d:0.2},{f:262,d:0.2},
+      {f:220,d:0.2},{f:220,d:0.2},{f:196,d:0.2},{f:262,d:0.25}
+    ], wave: 'square' },
+
+    // Track 12: Feather float
+    { melody: [
+      {f:1047,d:0.18},{f:880,d:0.12},{f:1047,d:0.18},{f:1175,d:0.12},{f:1047,d:0.18},
+      {f:880,d:0.12},{f:784,d:0.18},{f:880,d:0.12},{f:1047,d:0.18},{f:880,d:0.12},
+      {f:784,d:0.18},{f:659,d:0.12},{f:784,d:0.18},{f:880,d:0.12},{f:1047,d:0.18},
+      {f:1175,d:0.12},{f:1319,d:0.18},{f:1175,d:0.12},{f:1047,d:0.18},{f:880,d:0.22}
+    ], bass: [
+      {f:262,d:0.3},{f:330,d:0.3},{f:262,d:0.3},{f:220,d:0.3},
+      {f:262,d:0.3},{f:330,d:0.3},{f:262,d:0.3},{f:220,d:0.35}
+    ], wave: 'sine' },
+
+    // Track 13: Drum roll energy
+    { melody: [
+      {f:784,d:0.1},{f:784,d:0.1},{f:880,d:0.1},{f:1047,d:0.2},{f:880,d:0.1},
+      {f:784,d:0.1},{f:659,d:0.1},{f:784,d:0.2},{f:880,d:0.1},{f:880,d:0.1},
+      {f:1047,d:0.1},{f:1175,d:0.2},{f:1047,d:0.1},{f:880,d:0.1},{f:784,d:0.1},
+      {f:880,d:0.2},{f:784,d:0.1},{f:659,d:0.1},{f:784,d:0.1},{f:880,d:0.22}
+    ], bass: [
+      {f:196,d:0.2},{f:262,d:0.2},{f:196,d:0.2},{f:220,d:0.2},
+      {f:262,d:0.2},{f:196,d:0.2},{f:220,d:0.2},{f:262,d:0.25}
+    ], wave: 'square' },
+
+    // Track 14: Spring garden
+    { melody: [
+      {f:523,d:0.18},{f:659,d:0.15},{f:784,d:0.18},{f:880,d:0.15},{f:1047,d:0.18},
+      {f:880,d:0.15},{f:784,d:0.18},{f:659,d:0.15},{f:523,d:0.18},{f:659,d:0.15},
+      {f:784,d:0.18},{f:1047,d:0.15},{f:1175,d:0.18},{f:1047,d:0.15},{f:880,d:0.18},
+      {f:784,d:0.15},{f:659,d:0.18},{f:523,d:0.15},{f:659,d:0.18},{f:784,d:0.22}
+    ], bass: [
+      {f:262,d:0.35},{f:220,d:0.35},{f:196,d:0.35},{f:262,d:0.35},
+      {f:220,d:0.35},{f:262,d:0.35},{f:196,d:0.35}
+    ], wave: 'triangle' },
+
+    // Track 15: Neon city
+    { melody: [
+      {f:880,d:0.12},{f:1047,d:0.12},{f:1175,d:0.18},{f:1047,d:0.12},{f:880,d:0.12},
+      {f:1047,d:0.18},{f:880,d:0.12},{f:784,d:0.12},{f:880,d:0.18},{f:1047,d:0.12},
+      {f:1175,d:0.12},{f:1319,d:0.18},{f:1175,d:0.12},{f:1047,d:0.12},{f:880,d:0.18},
+      {f:784,d:0.12},{f:880,d:0.12},{f:1047,d:0.18},{f:880,d:0.12},{f:784,d:0.2}
+    ], bass: [
+      {f:220,d:0.25},{f:262,d:0.25},{f:330,d:0.25},{f:262,d:0.25},
+      {f:220,d:0.25},{f:262,d:0.25},{f:220,d:0.25},{f:196,d:0.28}
+    ], wave: 'sawtooth' },
+
+    // Track 16: Festival drums
+    { melody: [
+      {f:784,d:0.12},{f:880,d:0.12},{f:784,d:0.12},{f:659,d:0.18},{f:784,d:0.12},
+      {f:880,d:0.12},{f:1047,d:0.12},{f:880,d:0.18},{f:784,d:0.12},{f:659,d:0.12},
+      {f:784,d:0.12},{f:880,d:0.18},{f:1047,d:0.12},{f:1175,d:0.12},{f:1047,d:0.12},
+      {f:880,d:0.18},{f:784,d:0.12},{f:659,d:0.12},{f:784,d:0.18},{f:880,d:0.2}
+    ], bass: [
+      {f:262,d:0.2},{f:196,d:0.2},{f:262,d:0.2},{f:220,d:0.2},
+      {f:262,d:0.2},{f:196,d:0.2},{f:262,d:0.2},{f:220,d:0.25}
+    ], wave: 'triangle' },
+
+    // Track 17: Ocean breeze
+    { melody: [
+      {f:659,d:0.2},{f:784,d:0.15},{f:880,d:0.2},{f:1047,d:0.15},{f:880,d:0.2},
+      {f:784,d:0.15},{f:659,d:0.2},{f:523,d:0.15},{f:659,d:0.2},{f:784,d:0.15},
+      {f:880,d:0.2},{f:1047,d:0.15},{f:1175,d:0.2},{f:1047,d:0.15},{f:880,d:0.2},
+      {f:784,d:0.15},{f:659,d:0.2},{f:784,d:0.15},{f:880,d:0.2},{f:784,d:0.22}
+    ], bass: [
+      {f:196,d:0.35},{f:262,d:0.35},{f:220,d:0.35},{f:262,d:0.35},
+      {f:196,d:0.35},{f:220,d:0.35},{f:262,d:0.35}
+    ], wave: 'sine' },
+
+    // Track 18: Pixel adventure
+    { melody: [
+      {f:523,d:0.12},{f:659,d:0.12},{f:784,d:0.12},{f:1047,d:0.15},{f:784,d:0.12},
+      {f:659,d:0.12},{f:523,d:0.15},{f:659,d:0.12},{f:784,d:0.12},{f:880,d:0.12},
+      {f:1047,d:0.15},{f:1175,d:0.12},{f:1047,d:0.12},{f:880,d:0.15},{f:784,d:0.12},
+      {f:659,d:0.12},{f:784,d:0.12},{f:880,d:0.15},{f:1047,d:0.12},{f:880,d:0.2}
+    ], bass: [
+      {f:262,d:0.22},{f:220,d:0.22},{f:196,d:0.22},{f:262,d:0.22},
+      {f:220,d:0.22},{f:262,d:0.22},{f:196,d:0.22},{f:220,d:0.25}
+    ], wave: 'square' },
+
+    // Track 19: Bamboo flute dance
+    { melody: [
+      {f:880,d:0.18},{f:1047,d:0.12},{f:880,d:0.15},{f:784,d:0.18},{f:659,d:0.12},
+      {f:784,d:0.15},{f:880,d:0.18},{f:1047,d:0.12},{f:1175,d:0.15},{f:1047,d:0.18},
+      {f:880,d:0.12},{f:784,d:0.15},{f:659,d:0.18},{f:784,d:0.12},{f:880,d:0.15},
+      {f:784,d:0.18},{f:659,d:0.12},{f:523,d:0.15},{f:659,d:0.18},{f:784,d:0.22}
+    ], bass: [
+      {f:220,d:0.3},{f:262,d:0.3},{f:220,d:0.3},{f:196,d:0.3},
+      {f:220,d:0.3},{f:262,d:0.3},{f:220,d:0.3},{f:196,d:0.32}
+    ], wave: 'triangle' },
+
+    // Track 20: Starlight express
+    { melody: [
+      {f:1175,d:0.12},{f:1047,d:0.12},{f:880,d:0.15},{f:1047,d:0.12},{f:1175,d:0.12},
+      {f:1319,d:0.15},{f:1175,d:0.12},{f:1047,d:0.12},{f:880,d:0.15},{f:784,d:0.12},
+      {f:880,d:0.12},{f:1047,d:0.15},{f:1175,d:0.12},{f:1319,d:0.12},{f:1175,d:0.15},
+      {f:1047,d:0.12},{f:880,d:0.12},{f:784,d:0.15},{f:880,d:0.12},{f:1047,d:0.2}
+    ], bass: [
+      {f:262,d:0.25},{f:330,d:0.25},{f:262,d:0.25},{f:220,d:0.25},
+      {f:262,d:0.25},{f:330,d:0.25},{f:262,d:0.25},{f:220,d:0.28}
+    ], wave: 'triangle' }
+  ];
 
   function startBGM() {
     if (muted || bgmPlaying) return;
@@ -188,40 +411,76 @@ var SoundManager = (function () {
     bgmNodes = [];
   }
 
+  function pickRandomTrack() {
+    var idx;
+    do {
+      idx = Math.floor(Math.random() * bgmTracks.length);
+    } while (idx === lastTrackIndex && bgmTracks.length > 1);
+    lastTrackIndex = idx;
+    return bgmTracks[idx];
+  }
+
   function playBGMLoop() {
     if (!bgmPlaying || muted) { bgmPlaying = false; return; }
     var ctx = ensureContext();
-    
-    // Chinese pentatonic scale notes (宫商角徵羽): C D E G A
-    var melody = [523, 587, 659, 784, 880, 784, 659, 587, 523, 659, 784, 880, 1047, 880, 784, 659];
-    var noteDuration = 0.35;
-    var totalDuration = melody.length * noteDuration;
-    
+    var track = pickRandomTrack();
+    var melody = track.melody;
+    var bass = track.bass;
+    var waveType = track.wave || 'triangle';
+
     bgmNodes = [];
+    var t = ctx.currentTime;
+    var totalDuration = 0;
+
+    // Play melody
     for (var i = 0; i < melody.length; i++) {
       var osc = ctx.createOscillator();
       var gain = ctx.createGain();
       osc.connect(gain);
       gain.connect(ctx.destination);
-      
-      osc.type = 'sine';
-      var t = ctx.currentTime + i * noteDuration;
-      osc.frequency.setValueAtTime(melody[i], t);
-      
+
+      osc.type = waveType;
+      osc.frequency.setValueAtTime(melody[i].f, t);
+
       gain.gain.setValueAtTime(0, t);
-      gain.gain.linearRampToValueAtTime(0.08, t + 0.05);
-      gain.gain.setValueAtTime(0.08, t + noteDuration * 0.7);
-      gain.gain.linearRampToValueAtTime(0, t + noteDuration * 0.95);
-      
+      gain.gain.linearRampToValueAtTime(0.035, t + 0.02);
+      gain.gain.setValueAtTime(0.035, t + melody[i].d * 0.6);
+      gain.gain.linearRampToValueAtTime(0, t + melody[i].d * 0.95);
+
       osc.start(t);
-      osc.stop(t + noteDuration);
+      osc.stop(t + melody[i].d);
       bgmNodes.push(osc);
+      t += melody[i].d;
     }
-    
-    // Loop after melody completes
+    totalDuration = t - ctx.currentTime;
+
+    // Play bass layer
+    var bt = ctx.currentTime;
+    for (var j = 0; j < bass.length; j++) {
+      if (bt - ctx.currentTime >= totalDuration) break;
+      var bOsc = ctx.createOscillator();
+      var bGain = ctx.createGain();
+      bOsc.connect(bGain);
+      bGain.connect(ctx.destination);
+
+      bOsc.type = 'sine';
+      bOsc.frequency.setValueAtTime(bass[j].f, bt);
+
+      bGain.gain.setValueAtTime(0, bt);
+      bGain.gain.linearRampToValueAtTime(0.025, bt + 0.02);
+      bGain.gain.setValueAtTime(0.025, bt + bass[j].d * 0.5);
+      bGain.gain.linearRampToValueAtTime(0, bt + bass[j].d * 0.9);
+
+      bOsc.start(bt);
+      bOsc.stop(bt + bass[j].d);
+      bgmNodes.push(bOsc);
+      bt += bass[j].d;
+    }
+
+    // Play next random track after current one completes
     bgmTimer = setTimeout(function() {
       if (bgmPlaying) playBGMLoop();
-    }, totalDuration * 1000 + 200);
+    }, totalDuration * 1000 + 150);
   }
 
   return {
